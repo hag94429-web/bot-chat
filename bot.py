@@ -190,45 +190,14 @@ async def spam(message: types.Message, bot: Bot):
             ChatPermissions(can_send_messages=False)
         )
 
-# -------- PANEL COMMAND --------
 @router.message(Command("panel"))
 async def panel(message: types.Message):
-    if message.from_user.id not in admins:
-        return
-
-    await message.answer("⚙️ Панель", reply_markup=panel_kb())
-
-# -------- PANEL ACTIONS --------
-@router.callback_query()
-async def panel_actions(call: types.CallbackQuery, bot: Bot):
-    global raid_mode, strict_mode
-
-    if call.from_user.id not in admins:
-        return
-
-    if call.data == "raid_on":
-        raid_mode = True
-
-    elif call.data == "raid_off":
-        raid_mode = False
-
-    elif call.data == "strict":
-        strict_mode = not strict_mode
-
-    elif call.data == "sync":
-        await load_admins(bot)
-
-    elif call.data == "logs":
-        logs = get_logs()
-        text = "\n".join([f"{u} | {l}" for u,l in logs]) or "нема логів"
-        await call.message.edit_text(text, reply_markup=panel_kb())
-        return
-
-    await call.message.edit_text(
-        f"raid={raid_mode}\nstrict={strict_mode}",
+    await message.answer(
+        f"test\n"
+        f"your_id={message.from_user.id}\n"
+        f"admins={admins}",
         reply_markup=panel_kb()
     )
-
 # -------- AUTO RAID OFF --------
 async def loop():
     global raid_mode
