@@ -22,11 +22,26 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER,
             invite TEXT,
+            entry_type TEXT,
             time INTEGER
         )
     """)
 
     conn.commit()
+    conn.close()
+
+
+def ensure_logs_entry_type_column():
+    conn = connect()
+    cur = conn.cursor()
+
+    cur.execute("PRAGMA table_info(logs)")
+    columns = [row[1] for row in cur.fetchall()]
+
+    if "entry_type" not in columns:
+        cur.execute("ALTER TABLE logs ADD COLUMN entry_type TEXT DEFAULT 'user'")
+        conn.commit()
+
     conn.close()
 
 
@@ -71,14 +86,14 @@ def get_wl():
     return [row[0] for row in rows]
 
 
-def log_join(uid: int, invite: str):
+def log_join(uid: int, invite: str, entry_type: str = "user"):
     conn = connect()
     conn.execute(
         """
-        INSERT INTO logs (user_id, invite, time)
-        VALUES (?, ?, strftime('%s','now'))
+        INSERT INTO logs (user_id, invite, entry_type, time)
+        VALUES (?, ?, ?, strftime('%s','now'))
         """,
-        (uid, invite)
+        (uid, invite, entry_type)
     )
     conn.commit()
     conn.close()
@@ -89,7 +104,7 @@ def get_logs(limit: int = 10):
     cur = conn.cursor()
     cur.execute(
         """
-        SELECT user_id, invite
+        SELECT user_id, invite, entry_type, time
         FROM logs
         ORDER BY id DESC
         LIMIT ?

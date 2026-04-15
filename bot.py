@@ -15,7 +15,16 @@ from aiogram.types import (
 )
 from dotenv import load_dotenv
 
-from db import add_wl, del_wl, get_logs, get_wl, init_db, is_wl, log_join
+from db import (
+    add_wl,
+    del_wl,
+    ensure_logs_entry_type_column,
+    get_logs,
+    get_wl,
+    init_db,
+    is_wl,
+    log_join,
+)
 
 load_dotenv()
 
@@ -118,6 +127,27 @@ def captcha_kb(uid: int) -> InlineKeyboardMarkup:
     )
 
 
+# -------- SMART AUTO DELETE --------
+async def auto_delete(bot: Bot, chat_id: int, message_id: int, delay: int = 10):
+    await asyncio.sleep(delay)
+    try:
+        await bot.delete_message(chat_id, message_id)
+    except Exception:
+        pass
+
+
+async def reply_temp(
+    message: types.Message,
+    bot: Bot,
+    text: str,
+    delay: int = 10,
+    reply_markup=None
+):
+    msg = await message.answer(text, reply_markup=reply_markup)
+    asyncio.create_task(auto_delete(bot, msg.chat.id, msg.message_id, delay))
+    return msg
+
+
 # -------- ADMIN --------
 async def load_admins(bot: Bot):
     global admins
@@ -138,19 +168,18 @@ async def panel(message: types.Message):
         return
 
     if message.from_user.id not in admins:
-        await message.answer("❌ Нема доступу")
         return
 
     await message.answer("⚙️ Панель", reply_markup=panel_kb())
 
 
 @router.message(Command("status"))
-async def status_cmd(message: types.Message):
+async def status_cmd(message: types.Message, bot: Bot):
     if message.chat.id != CHAT_ID:
         return
 
     if message.from_user.id not in admins:
-        await message.answer("❌ Нема доступу")
+        await reply_temp(message, bot, "❌ Нема доступу", delay=5)
         return
 
     await message.answer(
@@ -163,14 +192,14 @@ async def status_cmd(message: types.Message):
 
 
 @router.message(Command("raid"))
-async def raid_cmd(message: types.Message):
+async def raid_cmd(message: types.Message, bot: Bot):
     global raid_mode, last_raid
 
     if message.chat.id != CHAT_ID:
         return
 
     if message.from_user.id not in admins:
-        await message.answer("❌ Нема доступу")
+        await reply_temp(message, bot, "❌ Нема доступу", delay=5)
         return
 
     text = (message.text or "").lower()
@@ -178,27 +207,27 @@ async def raid_cmd(message: types.Message):
     if "on" in text:
         raid_mode = True
         last_raid = now()
-        await message.answer("🚨 RAID MODE ON")
+        await reply_temp(message, bot, "🚨 RAID MODE ON", delay=10)
     elif "off" in text:
         raid_mode = False
-        await message.answer("✅ RAID MODE OFF")
+        await reply_temp(message, bot, "✅ RAID MODE OFF", delay=10)
     else:
-        await message.answer(f"raid={raid_mode}")
+        await reply_temp(message, bot, f"raid={raid_mode}", delay=8)
 
 
 @router.message(Command("strict"))
-async def strict_cmd(message: types.Message):
+async def strict_cmd(message: types.Message, bot: Bot):
     global strict_mode
 
     if message.chat.id != CHAT_ID:
         return
 
     if message.from_user.id not in admins:
-        await message.answer("❌ Нема доступу")
+        await reply_temp(message, bot, "❌ Нема доступу", delay=5)
         return
 
     strict_mode = not strict_mode
-    await message.answer(f"strict={strict_mode}")
+    await reply_temp(message, bot, f"strict={strict_mode}", delay=10)
 
 
 @router.message(Command("syncadmins"))
@@ -207,44 +236,45 @@ async def sync_admins(message: types.Message, bot: Bot):
         return
 
     if message.from_user.id not in admins:
-        await message.answer("❌ Нема доступу")
+        await reply_temp(message, bot, "❌ Нема доступу", delay=5)
         return
 
     await load_admins(bot)
-    await message.answer("✅ Адміни оновлені")
+    await reply_temp(message, bot, "✅ Адміни оновлені", delay=8)
 
 
 @router.message(Command("logs"))
-async def logs_cmd(message: types.Message):
+async def logs_cmd(message: types.Message, bot: Bot):
     if message.chat.id != CHAT_ID:
         return
 
     if message.from_user.id not in admins:
-        await message.answer("❌ Нема доступу")
+        await reply_temp(message, bot, "❌ Нема доступу", delay=5)
         return
 
     logs = get_logs(15)
     if not logs:
-        await message.answer("Логів немає")
+        await reply_temp(message, bot, "Логів немає", delay=8)
         return
 
-    text = "\n".join([f"{u} | {l}" for u, l in logs])
-    await message.answer(text[:4000])
+    text = "\n".join([f"{u} | {entry_type} | {l}" for u, l, entry_type, _t in logs])
+    msg = await message.answer(text[:4000])
+    asyncio.create_task(auto_delete(bot, msg.chat.id, msg.message_id, 20))
 
 
 @router.message(Command("wl"))
-async def wl_cmd(message: types.Message):
+async def wl_cmd(message: types.Message, bot: Bot):
     if message.chat.id != CHAT_ID:
         return
 
     if message.from_user.id not in admins:
-        await message.answer("❌ Нема доступу")
+        await reply_temp(message, bot, "❌ Нема доступу", delay=5)
         return
 
     parts = (message.text or "").split()
 
     if len(parts) < 2:
-        await message.answer("/wl add 123\n/wl del 123\n/wl list")
+        await reply_temp(message, bot, "/wl add 123\n/wl del 123\n/wl list", delay=10)
         return
 
     action = parts[1].lower()
@@ -252,29 +282,31 @@ async def wl_cmd(message: types.Message):
     if action == "list":
         wl = get_wl()
         if not wl:
-            await message.answer("Whitelist порожній")
+            await reply_temp(message, bot, "Whitelist порожній", delay=8)
             return
-        await message.answer("\n".join(map(str, wl[:100])))
+
+        msg = await message.answer("\n".join(map(str, wl[:100])))
+        asyncio.create_task(auto_delete(bot, msg.chat.id, msg.message_id, 20))
         return
 
     if len(parts) < 3:
-        await message.answer("Вкажи user_id")
+        await reply_temp(message, bot, "Вкажи user_id", delay=8)
         return
 
     try:
         uid = int(parts[2])
     except ValueError:
-        await message.answer("user_id має бути числом")
+        await reply_temp(message, bot, "user_id має бути числом", delay=8)
         return
 
     if action == "add":
         add_wl(uid)
-        await message.answer(f"✅ Додано {uid}")
+        await reply_temp(message, bot, f"✅ Додано {uid}", delay=8)
     elif action == "del":
         del_wl(uid)
-        await message.answer(f"✅ Видалено {uid}")
+        await reply_temp(message, bot, f"✅ Видалено {uid}", delay=8)
     else:
-        await message.answer("/wl add 123\n/wl del 123\n/wl list")
+        await reply_temp(message, bot, "/wl add 123\n/wl del 123\n/wl list", delay=10)
 
 
 # -------- PANEL ACTIONS --------
@@ -331,7 +363,7 @@ async def panel_actions(call: types.CallbackQuery, bot: Bot):
 
     elif call.data == "logs":
         logs = get_logs(15)
-        text = "\n".join([f"{u} | {l}" for u, l in logs]) or "нема логів"
+        text = "\n".join([f"{u} | {entry_type} | {l}" for u, l, entry_type, _t in logs]) or "нема логів"
         await call.message.edit_text(text[:4000], reply_markup=panel_kb())
 
     await call.answer()
@@ -343,19 +375,21 @@ async def join_handler(message: types.Message, bot: Bot):
     global raid_mode, last_raid
 
     for u in message.new_chat_members:
+        link = message.invite_link.invite_link if message.invite_link else "unknown"
+
         if u.is_bot:
+            log_join(u.id, link, "bot")
             continue
 
         if is_wl(u.id):
+            log_join(u.id, link, "whitelist")
             continue
 
-        link = message.invite_link.invite_link if message.invite_link else "unknown"
+        log_join(u.id, link, "user")
 
         g = add_join()
         c = add_inv(link)
         typ, limit = get_type(link)
-
-        log_join(u.id, link)
 
         if g >= RAID or c >= limit:
             raid_mode = True
@@ -384,12 +418,13 @@ async def join_handler(message: types.Message, bot: Bot):
             except Exception:
                 continue
 
-            await message.answer(
+            msg = await message.answer(
                 f"{u.first_name}, підтверди що ти не бот",
                 reply_markup=captcha_kb(u.id)
             )
 
             pending[u.id] = True
+            asyncio.create_task(auto_delete(bot, msg.chat.id, msg.message_id, 45))
             asyncio.create_task(timeout(bot, message.chat.id, u.id))
 
 
@@ -419,6 +454,7 @@ async def ok(call: types.CallbackQuery, bot: Bot):
 
     try:
         await call.message.edit_text("✅ доступ відкрито")
+        asyncio.create_task(auto_delete(bot, call.message.chat.id, call.message.message_id, 8))
     except Exception:
         pass
 
@@ -437,14 +473,11 @@ async def timeout(bot: Bot, chat: int, uid: int):
 
 
 # -------- SPAM --------
-@router.message(F.chat.id == CHAT_ID)
+@router.message(F.chat.id == CHAT_ID, ~F.text.startswith("/"))
 async def spam_handler(message: types.Message, bot: Bot):
     uid = message.from_user.id
 
     if is_wl(uid):
-        return
-
-    if message.text and message.text.startswith("/"):
         return
 
     if uid in pending:
@@ -481,6 +514,7 @@ async def raid_loop():
 # -------- START --------
 async def main():
     init_db()
+    ensure_logs_entry_type_column()
 
     bot = Bot(
         token=BOT_TOKEN,
@@ -493,6 +527,11 @@ async def main():
     asyncio.create_task(raid_loop())
 
     await dp.start_polling(bot)
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+    asyncio.run(main())
 
 
 if __name__ == "__main__":
