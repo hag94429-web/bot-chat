@@ -30,7 +30,10 @@ load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = int(os.getenv("CHAT_ID", "0"))
-OUR_LINK_PART = os.getenv("OUR_LINK_PART", "").strip()
+
+FRIENDS_LINK = os.getenv("FRIENDS_LINK", "").strip()
+TOP_LINK = os.getenv("TOP_LINK", "").strip()
+ADS_LINK = os.getenv("ADS_LINK", "").strip()
 
 if not BOT_TOKEN:
     raise ValueError("BOT_TOKEN not set")
@@ -44,8 +47,10 @@ WARNING = 3
 RAID = 5
 TIME_WINDOW = 10
 
-OUR_LIMIT = 5
+FRIENDS_LIMIT = 8
 TOP_LIMIT = 3
+ADS_LIMIT = 4
+EXTERNAL_LIMIT = 3
 
 SPAM_LIMIT = 12
 SPAM_TIME = 5
@@ -90,12 +95,18 @@ def add_inv(link: str) -> int:
 
 def get_type(link: str):
     if not link or link == "unknown":
-        return "external", TOP_LIMIT
+        return "external", EXTERNAL_LIMIT
 
-    if OUR_LINK_PART and OUR_LINK_PART in link:
-        return "our", OUR_LIMIT
+    if FRIENDS_LINK and FRIENDS_LINK in link:
+        return "friends", FRIENDS_LIMIT
 
-    return "external", TOP_LIMIT
+    if TOP_LINK and TOP_LINK in link:
+        return "top", TOP_LIMIT
+
+    if ADS_LINK and ADS_LINK in link:
+        return "ads", ADS_LIMIT
+
+    return "external", EXTERNAL_LIMIT
 
 
 def panel_kb() -> InlineKeyboardMarkup:
@@ -187,7 +198,10 @@ async def status_cmd(message: types.Message, bot: Bot):
         f"strict={strict_mode}\n"
         f"pending={len(pending)}\n"
         f"admins={len(admins)}\n"
-        f"spam={SPAM_LIMIT}/{SPAM_TIME}s"
+        f"spam={SPAM_LIMIT}/{SPAM_TIME}s\n"
+        f"friends_limit={FRIENDS_LIMIT}\n"
+        f"top_limit={TOP_LIMIT}\n"
+        f"ads_limit={ADS_LIMIT}"
     )
 
 
@@ -357,7 +371,10 @@ async def panel_actions(call: types.CallbackQuery, bot: Bot):
             f"strict={strict_mode}\n"
             f"pending={len(pending)}\n"
             f"admins={len(admins)}\n"
-            f"spam={SPAM_LIMIT}/{SPAM_TIME}s",
+            f"spam={SPAM_LIMIT}/{SPAM_TIME}s\n"
+            f"friends_limit={FRIENDS_LIMIT}\n"
+            f"top_limit={TOP_LIMIT}\n"
+            f"ads_limit={ADS_LIMIT}",
             reply_markup=panel_kb()
         )
 
@@ -376,6 +393,7 @@ async def join_handler(message: types.Message, bot: Bot):
 
     for u in message.new_chat_members:
         link = message.invite_link.invite_link if message.invite_link else "unknown"
+        typ, limit = get_type(link)
 
         if u.is_bot:
             log_join(u.id, link, "bot")
@@ -385,17 +403,16 @@ async def join_handler(message: types.Message, bot: Bot):
             log_join(u.id, link, "whitelist")
             continue
 
-        log_join(u.id, link, "user")
+        log_join(u.id, link, typ)
 
         g = add_join()
         c = add_inv(link)
-        typ, limit = get_type(link)
 
         if g >= RAID or c >= limit:
             raid_mode = True
             last_raid = now()
 
-        if typ != "our" and c >= limit and link != "unknown":
+        if typ in {"top", "ads", "external"} and c >= limit and link != "unknown":
             try:
                 await bot.revoke_chat_invite_link(message.chat.id, link)
             except Exception:
@@ -527,11 +544,6 @@ async def main():
     asyncio.create_task(raid_loop())
 
     await dp.start_polling(bot)
-
-
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-    asyncio.run(main())
 
 
 if __name__ == "__main__":
