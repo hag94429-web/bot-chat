@@ -11,17 +11,19 @@ from database import (
     get_balance,
     spend_balance,
     add_balance,
-    add_log
+    add_log,
+    set_emoji_status,
+    set_role
 )
 
 router = Router()
 
 
 SHOP_ITEMS = {
-    "emoji_1d": ("😊 Emoji/стікер статус 1 день", 300, "request"),
+    "emoji_1d": ("😊 Emoji/стікер статус 1 день", 300, "emoji"),
     "bonus": ("🎁 Міні-бонус", 500, "bonus"),
     "roulette": ("🎰 Рулетка", 700, "roulette"),
-    "role_1d": ("⭐ Базова роль 1 день", 1000, "request"),
+    "role_1d": ("⭐ Базова роль 1 день", 1000, "role_basic"),
 
     "gray_1d": ("⚪ Сірий префікс 1 день", 1000, "request"),
     "gray_7d": ("⚪ Сірий префікс 7 днів", 5000, "request"),
@@ -62,10 +64,13 @@ async def shop_cmd(message: Message):
         f"🛒 Магазин Nyx Coin\n\n"
         f"💰 Баланс: {balance} NC\n\n"
         f"⚡ Швидкі покупки:\n"
-        f"😊 Emoji — 300 NC\n"
+        f"😊 Emoji — 300 NC на 1 день\n"
         f"🎁 Міні-бонус — 500 NC\n"
         f"🎰 Рулетка — 700 NC\n"
-        f"⭐ Роль — 1000 NC\n\n"
+        f"⭐ BASIC VIP — 1000 NC на 1 день\n\n"
+        f"⭐ BASIC VIP дає:\n"
+        f"— значок у /top\n"
+        f"— +10% до /daily\n\n"
         f"⚪ Сірий преф: день / тиждень / місяць\n"
         f"🟢 Зелений преф: день / тиждень / місяць\n\n"
         f"🎮 Ігри дня: Мафія / Уно / Правда чи дія\n"
@@ -98,7 +103,30 @@ async def buy_item(callback: CallbackQuery):
 
     add_log(user_id, username, "buy", price, name)
 
-    if item_type == "bonus":
+    if item_type == "emoji":
+        emoji = random.choice(["🔥", "💎", "😈", "👑", "⚡", "🌙", "💀"])
+        set_emoji_status(user_id, emoji)
+        add_log(user_id, username, "emoji_status", price, emoji)
+
+        await callback.message.answer(
+            f"✅ Emoji статус активовано!\n\n"
+            f"Твій статус: {emoji}\n"
+            f"⏳ Діє: 1 день\n"
+            f"🏆 Буде видно біля твого ніку в /top."
+        )
+
+    elif item_type == "role_basic":
+        set_role(user_id, "basic")
+        add_log(user_id, username, "role_basic", price, "BASIC VIP 1 день")
+
+        await callback.message.answer(
+            f"✅ BASIC VIP активовано!\n\n"
+            f"⏳ Діє: 1 день\n"
+            f"🏆 У /top буде значок ⭐ [VIP]\n"
+            f"🎁 /daily дає +10% бонус."
+        )
+
+    elif item_type == "bonus":
         reward = random.choice([200, 300, 400, 500, 600])
         add_balance(user_id, reward)
         add_log(user_id, username, "bonus_reward", reward, "Міні-бонус")

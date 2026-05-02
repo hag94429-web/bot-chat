@@ -1,4 +1,5 @@
 import sqlite3
+import time
 from datetime import date
 
 DB_NAME = "nyx.db"
@@ -20,6 +21,17 @@ def init_db():
         last_daily TEXT
     )
     """)
+
+    for column in [
+        "emoji_status TEXT",
+        "emoji_until INTEGER",
+        "role TEXT",
+        "role_until INTEGER"
+    ]:
+        try:
+            cur.execute(f"ALTER TABLE users ADD COLUMN {column}")
+        except sqlite3.OperationalError:
+            pass
 
     cur.execute("""
     CREATE TABLE IF NOT EXISTS logs (
@@ -46,10 +58,7 @@ def register_user(user_id, username):
     VALUES (?, ?, 0)
     """, (user_id, username))
 
-    cur.execute("""
-    UPDATE users SET username = ?
-    WHERE user_id = ?
-    """, (username, user_id))
+    cur.execute("UPDATE users SET username = ? WHERE user_id = ?", (username, user_id))
 
     conn.commit()
     conn.close()
@@ -58,10 +67,8 @@ def register_user(user_id, username):
 def get_balance(user_id):
     conn = connect()
     cur = conn.cursor()
-
     cur.execute("SELECT balance FROM users WHERE user_id = ?", (user_id,))
     row = cur.fetchone()
-
     conn.close()
     return row[0] if row else 0
 
@@ -69,13 +76,7 @@ def get_balance(user_id):
 def add_balance(user_id, amount):
     conn = connect()
     cur = conn.cursor()
-
-    cur.execute("""
-    UPDATE users
-    SET balance = balance + ?
-    WHERE user_id = ?
-    """, (amount, user_id))
-
+    cur.execute("UPDATE users SET balance = balance + ? WHERE user_id = ?", (amount, user_id))
     conn.commit()
     conn.close()
 
@@ -83,20 +84,16 @@ def add_balance(user_id, amount):
 def spend_balance(user_id, amount):
     if get_balance(user_id) < amount:
         return False
-
     add_balance(user_id, -amount)
     return True
 
 
 def can_daily(user_id):
     today = str(date.today())
-
     conn = connect()
     cur = conn.cursor()
-
     cur.execute("SELECT last_daily FROM users WHERE user_id = ?", (user_id,))
     row = cur.fetchone()
-
     conn.close()
     return not row or row[0] != today
 
@@ -104,13 +101,7 @@ def can_daily(user_id):
 def set_daily(user_id):
     conn = connect()
     cur = conn.cursor()
-
-    cur.execute("""
-    UPDATE users
-    SET last_daily = ?
-    WHERE user_id = ?
-    """, (str(date.today()), user_id))
-
+    cur.execute("UPDATE users SET last_daily = ? WHERE user_id = ?", (str(date.today()), user_id))
     conn.commit()
     conn.close()
 
@@ -131,6 +122,92 @@ def get_top(limit=10):
     return rows
 
 
+def set_emoji_status(user_id, emoji):
+    expire = int(time.time()) + 86400
+
+    conn = connect()
+    cur = conn.cursor()
+
+    cur.execute("""
+    UPDATE users
+    SET emoji_status = ?, emoji_until = ?
+    WHERE user_id = ?
+    """, (emoji, expire, user_id))
+
+    conn.commit()
+    conn.close()
+
+
+def get_active_emoji(user_id):
+    conn = connect()
+    cur = conn.cursor()
+
+    cur.execute("""
+    SELECT emoji_status, emoji_until
+    FROM users
+    WHERE user_id = ?
+    """, (user_id,))
+
+    row = cur.fetchone()
+    conn.close()
+
+    if not row:
+        return ""
+
+    emoji, emoji_until = row
+
+    if not emoji or not emoji_until:
+        return ""
+
+    if int(time.time()) > int(emoji_until):
+        return ""
+
+    return emoji
+
+
+def set_role(user_id, role):
+    expire = int(time.time()) + 86400
+
+    conn = connect()
+    cur = conn.cursor()
+
+    cur.execute("""
+    UPDATE users
+    SET role = ?, role_until = ?
+    WHERE user_id = ?
+    """, (role, expire, user_id))
+
+    conn.commit()
+    conn.close()
+
+
+def get_active_role(user_id):
+    conn = connect()
+    cur = conn.cursor()
+
+    cur.execute("""
+    SELECT role, role_until
+    FROM users
+    WHERE user_id = ?
+    """, (user_id,))
+
+    row = cur.fetchone()
+    conn.close()
+
+    if not row:
+        return ""
+
+    role, role_until = row
+
+    if not role or not role_until:
+        return ""
+
+    if int(time.time()) > int(role_until):
+        return ""
+
+    return role
+
+
 def add_log(user_id, username, action, amount, item):
     conn = connect()
     cur = conn.cursor()
@@ -144,7 +221,7 @@ def add_log(user_id, username, action, amount, item):
     conn.close()
 
 
-def get_logs(limit=10):
+def get_logs(limit=15):
     conn = connect()
     cur = conn.cursor()
 

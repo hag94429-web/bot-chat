@@ -11,7 +11,9 @@ from database import (
     set_daily,
     get_top,
     get_logs,
-    get_top_donates
+    get_top_donates,
+    get_active_emoji,
+    get_active_role
 )
 
 router = Router()
@@ -31,14 +33,34 @@ async def start_cmd(message: Message):
         "/daily — щоденний бонус\n"
         "/top — топ по NC\n"
         "/shop — магазин\n"
-        "/stars — купити NC за ⭐"
+        "/stars — купити NC за ⭐\n"
+        "/profile — мій профіль"
+    )
+
+
+@router.message(Command("profile"))
+async def profile_cmd(message: Message):
+    user_id = message.from_user.id
+    register_user(user_id, message.from_user.username)
+
+    balance = get_balance(user_id)
+    emoji = get_active_emoji(user_id)
+    role = get_active_role(user_id)
+
+    role_text = "⭐ BASIC VIP" if role == "basic" else "немає"
+    emoji_text = emoji if emoji else "немає"
+
+    await message.answer(
+        f"👤 Профіль\n\n"
+        f"💰 Баланс: {balance} NC\n"
+        f"😊 Emoji статус: {emoji_text}\n"
+        f"⭐ Роль: {role_text}"
     )
 
 
 @router.message(Command("balance"))
 async def balance_cmd(message: Message):
     register_user(message.from_user.id, message.from_user.username)
-
     balance = get_balance(message.from_user.id)
     await message.answer(f"💰 Твій баланс: {balance} NC")
 
@@ -52,10 +74,19 @@ async def daily_cmd(message: Message):
         await message.answer("⏳ Ти вже забирав бонус сьогодні.")
         return
 
-    add_balance(user_id, DAILY_REWARD)
+    role = get_active_role(user_id)
+
+    reward = DAILY_REWARD
+    if role == "basic":
+        reward = int(DAILY_REWARD * 1.1)
+
+    add_balance(user_id, reward)
     set_daily(user_id)
 
-    await message.answer(f"🎁 Ти отримав {DAILY_REWARD} NC!")
+    if role == "basic":
+        await message.answer(f"🎁 Ти отримав {reward} NC!\n⭐ BASIC VIP бонус: +10%")
+    else:
+        await message.answer(f"🎁 Ти отримав {reward} NC!")
 
 
 @router.message(Command("top"))
@@ -70,8 +101,15 @@ async def top_cmd(message: Message):
 
     for i, row in enumerate(rows, start=1):
         username, user_id, balance = row
-        name = f"@{username}" if username else f"ID: {user_id}"
-        text += f"{i}. {name} — {balance} NC\n"
+        name = f"@{username}" if username else f"ID:{user_id}"
+
+        emoji = get_active_emoji(user_id)
+        role = get_active_role(user_id)
+
+        role_prefix = "⭐ [VIP]" if role == "basic" else ""
+        emoji_prefix = f"{emoji} " if emoji else ""
+
+        text += f"{i}. {emoji_prefix}{role_prefix} {name} — {balance} NC\n"
 
     await message.answer(text)
 
