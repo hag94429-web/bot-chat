@@ -26,7 +26,9 @@ def init_db():
         "emoji_status TEXT",
         "emoji_until INTEGER",
         "role TEXT",
-        "role_until INTEGER"
+        "role_until INTEGER",
+        "last_msg_time INTEGER",
+        "last_msg_text TEXT"
     ]:
         try:
             cur.execute(f"ALTER TABLE users ADD COLUMN {column}")
@@ -67,8 +69,10 @@ def register_user(user_id, username):
 def get_balance(user_id):
     conn = connect()
     cur = conn.cursor()
+
     cur.execute("SELECT balance FROM users WHERE user_id = ?", (user_id,))
     row = cur.fetchone()
+
     conn.close()
     return row[0] if row else 0
 
@@ -76,7 +80,13 @@ def get_balance(user_id):
 def add_balance(user_id, amount):
     conn = connect()
     cur = conn.cursor()
-    cur.execute("UPDATE users SET balance = balance + ? WHERE user_id = ?", (amount, user_id))
+
+    cur.execute("""
+    UPDATE users
+    SET balance = balance + ?
+    WHERE user_id = ?
+    """, (amount, user_id))
+
     conn.commit()
     conn.close()
 
@@ -84,16 +94,20 @@ def add_balance(user_id, amount):
 def spend_balance(user_id, amount):
     if get_balance(user_id) < amount:
         return False
+
     add_balance(user_id, -amount)
     return True
 
 
 def can_daily(user_id):
     today = str(date.today())
+
     conn = connect()
     cur = conn.cursor()
+
     cur.execute("SELECT last_daily FROM users WHERE user_id = ?", (user_id,))
     row = cur.fetchone()
+
     conn.close()
     return not row or row[0] != today
 
@@ -101,7 +115,13 @@ def can_daily(user_id):
 def set_daily(user_id):
     conn = connect()
     cur = conn.cursor()
-    cur.execute("UPDATE users SET last_daily = ? WHERE user_id = ?", (str(date.today()), user_id))
+
+    cur.execute("""
+    UPDATE users
+    SET last_daily = ?
+    WHERE user_id = ?
+    """, (str(date.today()), user_id))
+
     conn.commit()
     conn.close()
 
@@ -165,7 +185,7 @@ def get_active_emoji(user_id):
     return emoji
 
 
-def set_role(user_id, role):
+def set_basic_role(user_id):
     expire = int(time.time()) + 86400
 
     conn = connect()
@@ -175,7 +195,7 @@ def set_role(user_id, role):
     UPDATE users
     SET role = ?, role_until = ?
     WHERE user_id = ?
-    """, (role, expire, user_id))
+    """, ("basic", expire, user_id))
 
     conn.commit()
     conn.close()
@@ -206,6 +226,36 @@ def get_active_role(user_id):
         return ""
 
     return role
+
+
+def update_last_msg(user_id, text):
+    conn = connect()
+    cur = conn.cursor()
+
+    cur.execute("""
+    UPDATE users
+    SET last_msg_time = ?, last_msg_text = ?
+    WHERE user_id = ?
+    """, (int(time.time()), text, user_id))
+
+    conn.commit()
+    conn.close()
+
+
+def get_last_msg(user_id):
+    conn = connect()
+    cur = conn.cursor()
+
+    cur.execute("""
+    SELECT last_msg_time, last_msg_text
+    FROM users
+    WHERE user_id = ?
+    """, (user_id,))
+
+    row = cur.fetchone()
+    conn.close()
+
+    return row if row else (0, "")
 
 
 def add_log(user_id, username, action, amount, item):

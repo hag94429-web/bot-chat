@@ -29,12 +29,13 @@ async def start_cmd(message: Message):
 
     await message.answer(
         "🌙 Nyx Coin бот активний!\n\n"
+        "/profile — профіль\n"
         "/balance — баланс\n"
         "/daily — щоденний бонус\n"
         "/top — топ по NC\n"
         "/shop — магазин\n"
         "/stars — купити NC за ⭐\n"
-        "/profile — мій профіль"
+        "/topdonate — топ донатерів"
     )
 
 
@@ -47,8 +48,8 @@ async def profile_cmd(message: Message):
     emoji = get_active_emoji(user_id)
     role = get_active_role(user_id)
 
-    role_text = "⭐ BASIC VIP" if role == "basic" else "немає"
     emoji_text = emoji if emoji else "немає"
+    role_text = "⭐ BASIC VIP" if role == "basic" else "немає"
 
     await message.answer(
         f"👤 Профіль\n\n"
@@ -61,6 +62,7 @@ async def profile_cmd(message: Message):
 @router.message(Command("balance"))
 async def balance_cmd(message: Message):
     register_user(message.from_user.id, message.from_user.username)
+
     balance = get_balance(message.from_user.id)
     await message.answer(f"💰 Твій баланс: {balance} NC")
 
@@ -101,15 +103,15 @@ async def top_cmd(message: Message):
 
     for i, row in enumerate(rows, start=1):
         username, user_id, balance = row
-        name = f"@{username}" if username else f"ID:{user_id}"
 
+        name = f"@{username}" if username else f"ID:{user_id}"
         emoji = get_active_emoji(user_id)
         role = get_active_role(user_id)
 
-        role_prefix = "⭐ [VIP]" if role == "basic" else ""
         emoji_prefix = f"{emoji} " if emoji else ""
+        role_prefix = "⭐ [VIP] " if role == "basic" else ""
 
-        text += f"{i}. {emoji_prefix}{role_prefix} {name} — {balance} NC\n"
+        text += f"{i}. {emoji_prefix}{role_prefix}{name} — {balance} NC\n"
 
     await message.answer(text)
 
