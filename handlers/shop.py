@@ -29,7 +29,7 @@ class AdState(StatesGroup):
 ITEMS = {
     "emoji_1d": ("😊 Emoji статус 1 день", 300, "emoji"),
     "bonus": ("🎁 Міні-бонус", 500, "bonus"),
-    "roulette": ("🎰 Рулетка", 700, "roulette"),
+    "roulette": ("🎰 Рулетка", 1200, "roulette"),
     "role_1d": ("⭐ BASIC VIP 1 день", 1000, "role_basic"),
 
     "gray_1d": ("⚪ Сірий префікс 1 день", 1000, "request"),
@@ -187,7 +187,7 @@ async def buy_item(callback: CallbackQuery, state: FSMContext):
     elif item_type == "roulette":
         reward = random.choices(
             population=[300, 500, 700, 1200, 2000, 4000],
-            weights=[35, 25, 20, 12, 6, 2],
+            weights=[35, 25, 12, 6, 4, 1],
             k=1
         )[0]
 
