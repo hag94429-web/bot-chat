@@ -151,7 +151,7 @@ async def give_cmd(message: Message):
         await message.answer("❌ Сума має бути більше 0.")
         return
 
-    register_user(user_id, None, None)
+    register_user(user_id)
     add_balance(user_id, amount)
 
     await message.answer(f"✅ Видано {amount} NC користувачу {user_id}.")
