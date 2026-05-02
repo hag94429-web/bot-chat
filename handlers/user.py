@@ -23,9 +23,21 @@ def is_admin(user_id: int) -> bool:
     return user_id in ADMIN_IDS
 
 
+def get_display_name(username, full_name, user_id):
+    if username:
+        return f"@{username}"
+    if full_name:
+        return f'<a href="tg://user?id={user_id}">{full_name}</a>'
+    return f'<a href="tg://user?id={user_id}">user</a>'
+
+
 @router.message(Command("start"))
 async def start_cmd(message: Message):
-    register_user(message.from_user.id, message.from_user.username)
+    register_user(
+        message.from_user.id,
+        message.from_user.username,
+        message.from_user.full_name
+    )
 
     await message.answer(
         "🌙 Nyx Coin бот активний!\n\n"
@@ -44,7 +56,8 @@ async def start_cmd(message: Message):
 @router.message(Command("profile"))
 async def profile_cmd(message: Message):
     user_id = message.from_user.id
-    register_user(user_id, message.from_user.username)
+
+    register_user(user_id, message.from_user.username, message.from_user.full_name)
 
     balance = get_balance(user_id)
     emoji = get_active_emoji(user_id)
@@ -60,14 +73,20 @@ async def profile_cmd(message: Message):
 
 @router.message(Command("balance"))
 async def balance_cmd(message: Message):
-    register_user(message.from_user.id, message.from_user.username)
+    register_user(
+        message.from_user.id,
+        message.from_user.username,
+        message.from_user.full_name
+    )
+
     await message.answer(f"💰 Твій баланс: {get_balance(message.from_user.id)} NC")
 
 
 @router.message(Command("daily"))
 async def daily_cmd(message: Message):
     user_id = message.from_user.id
-    register_user(user_id, message.from_user.username)
+
+    register_user(user_id, message.from_user.username, message.from_user.full_name)
 
     if not can_daily(user_id):
         await message.answer("⏳ Ти вже забирав бонус сьогодні.")
@@ -95,9 +114,9 @@ async def top_cmd(message: Message):
     text = "🏆 Топ Nyx Coin:\n\n"
 
     for i, row in enumerate(rows, start=1):
-        username, user_id, balance = row
+        username, full_name, user_id, balance = row
 
-        name = f"@{username}" if username else f"ID:{user_id}"
+        name = get_display_name(username, full_name, user_id)
         emoji = get_active_emoji(user_id)
         role = get_active_role(user_id)
 
@@ -106,7 +125,7 @@ async def top_cmd(message: Message):
 
         text += f"{i}. {emoji_prefix}{role_prefix}{name} — {balance} NC\n"
 
-    await message.answer(text)
+    await message.answer(text, parse_mode="HTML")
 
 
 @router.message(Command("give"))
@@ -121,14 +140,18 @@ async def give_cmd(message: Message):
         await message.answer("❌ Використання: /give user_id сума")
         return
 
-    user_id = int(args[1])
-    amount = int(args[2])
+    try:
+        user_id = int(args[1])
+        amount = int(args[2])
+    except ValueError:
+        await message.answer("❌ user_id і сума мають бути числами.")
+        return
 
     if amount <= 0:
         await message.answer("❌ Сума має бути більше 0.")
         return
 
-    register_user(user_id, None)
+    register_user(user_id, None, None)
     add_balance(user_id, amount)
 
     await message.answer(f"✅ Видано {amount} NC користувачу {user_id}.")
