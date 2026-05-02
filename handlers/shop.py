@@ -6,7 +6,13 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from config import ADMIN_IDS
-from database import register_user, get_balance, spend_balance, add_balance
+from database import (
+    register_user,
+    get_balance,
+    spend_balance,
+    add_balance,
+    add_log
+)
 
 router = Router()
 
@@ -47,12 +53,12 @@ def shop_keyboard():
 
 
 @router.message(Command("shop"))
-async def shop(msg: Message):
-    register_user(msg.from_user.id, msg.from_user.username)
+async def shop_cmd(message: Message):
+    register_user(message.from_user.id, message.from_user.username)
 
-    balance = get_balance(msg.from_user.id)
+    balance = get_balance(message.from_user.id)
 
-    await msg.answer(
+    await message.answer(
         f"🛒 Магазин Nyx Coin\n\n"
         f"💰 Баланс: {balance} NC\n\n"
         f"⚡ Швидкі покупки:\n"
@@ -69,32 +75,35 @@ async def shop(msg: Message):
 
 
 @router.callback_query(F.data.startswith("buy:"))
-async def buy(call: CallbackQuery):
-    user_id = call.from_user.id
-    username = call.from_user.username
+async def buy_item(callback: CallbackQuery):
+    user_id = callback.from_user.id
+    username = callback.from_user.username
 
     register_user(user_id, username)
 
-    key = call.data.split(":")[1]
+    item_key = callback.data.split(":")[1]
 
-    if key not in SHOP_ITEMS:
-        await call.answer("Товар не знайдено.", show_alert=True)
+    if item_key not in SHOP_ITEMS:
+        await callback.answer("Товар не знайдено.", show_alert=True)
         return
 
-    name, price, item_type = SHOP_ITEMS[key]
+    name, price, item_type = SHOP_ITEMS[item_key]
 
     if not spend_balance(user_id, price):
-        await call.answer(
+        await callback.answer(
             f"❌ Недостатньо NC.\nБаланс: {get_balance(user_id)} NC",
             show_alert=True
         )
         return
 
+    add_log(user_id, username, "buy", price, name)
+
     if item_type == "bonus":
         reward = random.choice([200, 300, 400, 500, 600])
         add_balance(user_id, reward)
+        add_log(user_id, username, "bonus_reward", reward, "Міні-бонус")
 
-        await call.message.answer(
+        await callback.message.answer(
             f"🎁 Міні-бонус відкрито!\n\n"
             f"Вартість: {price} NC\n"
             f"Випало: {reward} NC"
@@ -108,15 +117,16 @@ async def buy(call: CallbackQuery):
         )[0]
 
         add_balance(user_id, reward)
+        add_log(user_id, username, "roulette_reward", reward, "Рулетка")
 
-        await call.message.answer(
+        await callback.message.answer(
             f"🎰 Рулетка!\n\n"
             f"Вартість: {price} NC\n"
             f"Випало: {reward} NC"
         )
 
     else:
-        await call.message.answer(
+        await callback.message.answer(
             f"✅ Покупка успішна!\n\n"
             f"Товар: {name}\n"
             f"Списано: {price} NC\n\n"
@@ -125,7 +135,7 @@ async def buy(call: CallbackQuery):
 
         for admin_id in ADMIN_IDS:
             try:
-                await call.bot.send_message(
+                await callback.bot.send_message(
                     admin_id,
                     f"🛒 Нова покупка!\n\n"
                     f"👤 Користувач: @{username if username else 'без username'}\n"
@@ -136,4 +146,4 @@ async def buy(call: CallbackQuery):
             except Exception:
                 pass
 
-    await call.answer("Готово!")
+    await callback.answer("Готово!")

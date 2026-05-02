@@ -3,7 +3,8 @@ from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery, LabeledPrice, PreCheckoutQuery
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from database import register_user, add_balance
+from config import ADMIN_IDS
+from database import register_user, add_balance, add_log
 
 router = Router()
 
@@ -64,7 +65,7 @@ async def buy_stars_pack(callback: CallbackQuery):
     await callback.message.answer_invoice(
         title=f"{coins} Nyx Coin",
         description=f"Поповнення балансу на {coins} NC",
-        payload=f"nyxcoins:{coins}",
+        payload=f"nyxcoins:{coins}:{stars}",
         currency="XTR",
         prices=[
             LabeledPrice(label=f"{coins} Nyx Coin", amount=stars)
@@ -92,13 +93,37 @@ async def successful_payment(message: Message):
     if not payload.startswith("nyxcoins:"):
         return
 
-    coins = int(payload.split(":")[1])
+    parts = payload.split(":")
+    coins = int(parts[1])
+    stars = int(parts[2]) if len(parts) >= 3 else payment.total_amount
 
     register_user(message.from_user.id, message.from_user.username)
     add_balance(message.from_user.id, coins)
 
+    add_log(
+        message.from_user.id,
+        message.from_user.username,
+        "donate_stars",
+        stars,
+        f"+{coins} NC"
+    )
+
     await message.answer(
         f"✅ Оплата успішна!\n\n"
+        f"⭐ Оплачено: {stars} Stars\n"
         f"💰 Додано: {coins} NC\n"
         f"Баланс оновлено."
     )
+
+    for admin_id in ADMIN_IDS:
+        try:
+            await message.bot.send_message(
+                admin_id,
+                f"💎 Новий донат!\n\n"
+                f"👤 Користувач: @{message.from_user.username if message.from_user.username else 'без username'}\n"
+                f"🆔 ID: {message.from_user.id}\n"
+                f"⭐ Stars: {stars}\n"
+                f"💰 Видано: {coins} NC"
+            )
+        except Exception:
+            pass

@@ -9,90 +9,137 @@ from database import (
     add_balance,
     can_daily,
     set_daily,
-    get_top
+    get_top,
+    get_logs,
+    get_top_donates
 )
 
 router = Router()
 
 
-@router.message(Command("start"))
-async def start(msg: Message):
-    register_user(msg.from_user.id, msg.from_user.username)
+def is_admin(user_id: int) -> bool:
+    return user_id in ADMIN_IDS
 
-    await msg.answer(
+
+@router.message(Command("start"))
+async def start_cmd(message: Message):
+    register_user(message.from_user.id, message.from_user.username)
+
+    await message.answer(
         "🌙 Nyx Coin бот активний!\n\n"
         "/balance — баланс\n"
         "/daily — щоденний бонус\n"
-        "/top — топ\n"
+        "/top — топ по NC\n"
         "/shop — магазин\n"
         "/stars — купити NC за ⭐"
     )
 
 
 @router.message(Command("balance"))
-async def balance(msg: Message):
-    register_user(msg.from_user.id, msg.from_user.username)
-    await msg.answer(f"💰 Твій баланс: {get_balance(msg.from_user.id)} NC")
+async def balance_cmd(message: Message):
+    register_user(message.from_user.id, message.from_user.username)
+
+    balance = get_balance(message.from_user.id)
+    await message.answer(f"💰 Твій баланс: {balance} NC")
 
 
 @router.message(Command("daily"))
-async def daily(msg: Message):
-    user_id = msg.from_user.id
-
-    register_user(user_id, msg.from_user.username)
+async def daily_cmd(message: Message):
+    user_id = message.from_user.id
+    register_user(user_id, message.from_user.username)
 
     if not can_daily(user_id):
-        await msg.answer("⏳ Ти вже забирав бонус сьогодні.")
+        await message.answer("⏳ Ти вже забирав бонус сьогодні.")
         return
 
     add_balance(user_id, DAILY_REWARD)
     set_daily(user_id)
 
-    await msg.answer(f"🎁 Ти отримав {DAILY_REWARD} NC!")
+    await message.answer(f"🎁 Ти отримав {DAILY_REWARD} NC!")
 
 
 @router.message(Command("top"))
-async def top(msg: Message):
+async def top_cmd(message: Message):
     rows = get_top()
 
     if not rows:
-        await msg.answer("🏆 Топ поки порожній.")
+        await message.answer("🏆 Топ поки порожній.")
         return
 
     text = "🏆 Топ Nyx Coin:\n\n"
 
-    for i, row in enumerate(rows, 1):
+    for i, row in enumerate(rows, start=1):
         username, user_id, balance = row
         name = f"@{username}" if username else f"ID: {user_id}"
         text += f"{i}. {name} — {balance} NC\n"
 
-    await msg.answer(text)
+    await message.answer(text)
 
 
 @router.message(Command("give"))
-async def give(msg: Message):
-    if msg.from_user.id not in ADMIN_IDS:
-        await msg.answer("❌ Тільки адмін.")
+async def give_cmd(message: Message):
+    if not is_admin(message.from_user.id):
+        await message.answer("❌ Тільки адмін.")
         return
 
-    args = msg.text.split()
+    args = message.text.split()
 
     if len(args) != 3:
-        await msg.answer("❌ Використання: /give user_id сума")
+        await message.answer("❌ Використання: /give user_id сума")
         return
 
     try:
         user_id = int(args[1])
         amount = int(args[2])
     except ValueError:
-        await msg.answer("❌ user_id і сума мають бути числами.")
+        await message.answer("❌ user_id і сума мають бути числами.")
         return
 
     if amount <= 0:
-        await msg.answer("❌ Сума має бути більше 0.")
+        await message.answer("❌ Сума має бути більше 0.")
         return
 
     register_user(user_id, None)
     add_balance(user_id, amount)
 
-    await msg.answer(f"✅ Видано {amount} NC користувачу {user_id}.")
+    await message.answer(f"✅ Видано {amount} NC користувачу {user_id}.")
+
+
+@router.message(Command("logs"))
+async def logs_cmd(message: Message):
+    if not is_admin(message.from_user.id):
+        await message.answer("❌ Тільки адмін.")
+        return
+
+    rows = get_logs(15)
+
+    if not rows:
+        await message.answer("📊 Логів поки нема.")
+        return
+
+    text = "📊 Останні дії:\n\n"
+
+    for row in rows:
+        username, user_id, action, amount, item, created_at = row
+        name = f"@{username}" if username else f"ID:{user_id}"
+        text += f"{name} | {action} | {amount} | {item} | {created_at}\n"
+
+    await message.answer(text)
+
+
+@router.message(Command("topdonate"))
+async def topdonate_cmd(message: Message):
+    rows = get_top_donates()
+
+    if not rows:
+        await message.answer("💎 Донатів поки нема.")
+        return
+
+    text = "💎 Топ донатерів:\n\n"
+
+    for i, row in enumerate(rows, start=1):
+        username, user_id, total = row
+        name = f"@{username}" if username else f"ID:{user_id}"
+        text += f"{i}. {name} — {total}⭐\n"
+
+    await message.answer(text)
