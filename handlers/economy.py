@@ -1,0 +1,147 @@
+import random
+import time
+
+from aiogram import Router
+from aiogram.filters import Command
+from aiogram.types import Message
+
+from database import (
+    register_user,
+    get_balance,
+    add_balance,
+    spend_balance,
+    add_log,
+    get_last_pay_time,
+    set_last_pay_time,
+    get_last_case_time,
+    set_last_case_time,
+    set_emoji_status,
+    set_basic_role
+)
+
+router = Router()
+
+PAY_MIN = 50
+PAY_COOLDOWN = 10
+
+CASE_PRICE = 1000
+CASE_COOLDOWN = 20
+
+
+@router.message(Command("pay"))
+async def pay_cmd(message: Message):
+    sender_id = message.from_user.id
+    username = message.from_user.username
+
+    register_user(sender_id, username)
+
+    args = message.text.split()
+
+    if len(args) != 3:
+        await message.answer("❌ Використання: /pay user_id сума")
+        return
+
+    try:
+        receiver_id = int(args[1])
+        amount = int(args[2])
+    except ValueError:
+        await message.answer("❌ user_id і сума мають бути числами.")
+        return
+
+    if receiver_id == sender_id:
+        await message.answer("❌ Не можна переказати собі.")
+        return
+
+    if amount < PAY_MIN:
+        await message.answer(f"❌ Мінімальний переказ: {PAY_MIN} NC.")
+        return
+
+    now = int(time.time())
+    last_pay = get_last_pay_time(sender_id)
+
+    if last_pay and now - int(last_pay) < PAY_COOLDOWN:
+        await message.answer("⏳ Зачекай перед наступним переказом.")
+        return
+
+    if not spend_balance(sender_id, amount):
+        await message.answer("❌ Недостатньо NC.")
+        return
+
+    register_user(receiver_id, None)
+    add_balance(receiver_id, amount)
+    set_last_pay_time(sender_id)
+
+    add_log(sender_id, username, "pay_send", amount, f"to {receiver_id}")
+    add_log(receiver_id, None, "pay_receive", amount, f"from {sender_id}")
+
+    await message.answer(f"✅ Переказано {amount} NC користувачу {receiver_id}.")
+
+
+@router.message(Command("case"))
+async def case_cmd(message: Message):
+    user_id = message.from_user.id
+    username = message.from_user.username
+
+    register_user(user_id, username)
+
+    now = int(time.time())
+    last_case = get_last_case_time(user_id)
+
+    if last_case and now - int(last_case) < CASE_COOLDOWN:
+        await message.answer("⏳ Зачекай перед наступним кейсом.")
+        return
+
+    if not spend_balance(user_id, CASE_PRICE):
+        await message.answer(f"❌ Кейc коштує {CASE_PRICE} NC. У тебе: {get_balance(user_id)} NC.")
+        return
+
+    set_last_case_time(user_id)
+
+    reward = random.choices(
+        population=[
+            ("money", 200),
+            ("money", 500),
+            ("money", 1000),
+            ("money", 3000),
+            ("emoji", 0),
+            ("vip", 0),
+            ("nothing", 0)
+        ],
+        weights=[35, 25, 18, 8, 7, 4, 3],
+        k=1
+    )[0]
+
+    reward_type, value = reward
+
+    add_log(user_id, username, "case_open", CASE_PRICE, "case")
+
+    if reward_type == "money":
+        add_balance(user_id, value)
+        add_log(user_id, username, "case_reward", value, "NC")
+        await message.answer(
+            f"🎁 Ти відкрив кейс за {CASE_PRICE} NC\n\n"
+            f"💰 Випало: {value} NC"
+        )
+
+    elif reward_type == "emoji":
+        emoji = random.choice(["🔥", "💎", "👑", "⚡"])
+        set_emoji_status(user_id, emoji)
+        add_log(user_id, username, "case_reward", 0, f"emoji {emoji}")
+        await message.answer(
+            f"🎁 Ти відкрив кейс за {CASE_PRICE} NC\n\n"
+            f"😊 Випав emoji статус: {emoji} на 1 день"
+        )
+
+    elif reward_type == "vip":
+        set_basic_role(user_id)
+        add_log(user_id, username, "case_reward", 0, "BASIC VIP")
+        await message.answer(
+            f"🎁 Ти відкрив кейс за {CASE_PRICE} NC\n\n"
+            f"⭐ Випав BASIC VIP на 1 день"
+        )
+
+    else:
+        await message.answer(
+            f"🎁 Ти відкрив кейс за {CASE_PRICE} NC\n\n"
+            f"😢 Нічого не випало."
+        )

@@ -28,7 +28,9 @@ def init_db():
         "role TEXT",
         "role_until INTEGER",
         "last_msg_time INTEGER",
-        "last_msg_text TEXT"
+        "last_msg_text TEXT",
+        "last_pay_time INTEGER",
+        "last_case_time INTEGER"
     ]:
         try:
             cur.execute(f"ALTER TABLE users ADD COLUMN {column}")
@@ -78,6 +80,8 @@ def get_balance(user_id):
 
 
 def add_balance(user_id, amount):
+    register_user(user_id, None)
+
     conn = connect()
     cur = conn.cursor()
 
@@ -256,6 +260,56 @@ def get_last_msg(user_id):
     conn.close()
 
     return row if row else (0, "")
+
+
+def get_last_pay_time(user_id):
+    conn = connect()
+    cur = conn.cursor()
+
+    cur.execute("SELECT last_pay_time FROM users WHERE user_id = ?", (user_id,))
+    row = cur.fetchone()
+
+    conn.close()
+    return row[0] if row and row[0] else 0
+
+
+def set_last_pay_time(user_id):
+    conn = connect()
+    cur = conn.cursor()
+
+    cur.execute("""
+    UPDATE users
+    SET last_pay_time = ?
+    WHERE user_id = ?
+    """, (int(time.time()), user_id))
+
+    conn.commit()
+    conn.close()
+
+
+def get_last_case_time(user_id):
+    conn = connect()
+    cur = conn.cursor()
+
+    cur.execute("SELECT last_case_time FROM users WHERE user_id = ?", (user_id,))
+    row = cur.fetchone()
+
+    conn.close()
+    return row[0] if row and row[0] else 0
+
+
+def set_last_case_time(user_id):
+    conn = connect()
+    cur = conn.cursor()
+
+    cur.execute("""
+    UPDATE users
+    SET last_case_time = ?
+    WHERE user_id = ?
+    """, (int(time.time()), user_id))
+
+    conn.commit()
+    conn.close()
 
 
 def add_log(user_id, username, action, amount, item):

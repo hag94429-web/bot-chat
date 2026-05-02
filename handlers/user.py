@@ -35,6 +35,8 @@ async def start_cmd(message: Message):
         "/top — топ по NC\n"
         "/shop — магазин\n"
         "/stars — купити NC за ⭐\n"
+        "/pay — переказ NC\n"
+        "/case — відкрити кейс\n"
         "/topdonate — топ донатерів"
     )
 
@@ -48,23 +50,18 @@ async def profile_cmd(message: Message):
     emoji = get_active_emoji(user_id)
     role = get_active_role(user_id)
 
-    emoji_text = emoji if emoji else "немає"
-    role_text = "⭐ BASIC VIP" if role == "basic" else "немає"
-
     await message.answer(
         f"👤 Профіль\n\n"
         f"💰 Баланс: {balance} NC\n"
-        f"😊 Emoji статус: {emoji_text}\n"
-        f"⭐ Роль: {role_text}"
+        f"😊 Emoji статус: {emoji if emoji else 'немає'}\n"
+        f"⭐ Роль: {'BASIC VIP' if role == 'basic' else 'немає'}"
     )
 
 
 @router.message(Command("balance"))
 async def balance_cmd(message: Message):
     register_user(message.from_user.id, message.from_user.username)
-
-    balance = get_balance(message.from_user.id)
-    await message.answer(f"💰 Твій баланс: {balance} NC")
+    await message.answer(f"💰 Твій баланс: {get_balance(message.from_user.id)} NC")
 
 
 @router.message(Command("daily"))
@@ -76,19 +73,15 @@ async def daily_cmd(message: Message):
         await message.answer("⏳ Ти вже забирав бонус сьогодні.")
         return
 
-    role = get_active_role(user_id)
-
     reward = DAILY_REWARD
-    if role == "basic":
-        reward = int(DAILY_REWARD * 1.1)
+
+    if get_active_role(user_id) == "basic":
+        reward = int(reward * 1.1)
 
     add_balance(user_id, reward)
     set_daily(user_id)
 
-    if role == "basic":
-        await message.answer(f"🎁 Ти отримав {reward} NC!\n⭐ BASIC VIP бонус: +10%")
-    else:
-        await message.answer(f"🎁 Ти отримав {reward} NC!")
+    await message.answer(f"🎁 Ти отримав {reward} NC!")
 
 
 @router.message(Command("top"))
@@ -128,12 +121,8 @@ async def give_cmd(message: Message):
         await message.answer("❌ Використання: /give user_id сума")
         return
 
-    try:
-        user_id = int(args[1])
-        amount = int(args[2])
-    except ValueError:
-        await message.answer("❌ user_id і сума мають бути числами.")
-        return
+    user_id = int(args[1])
+    amount = int(args[2])
 
     if amount <= 0:
         await message.answer("❌ Сума має бути більше 0.")

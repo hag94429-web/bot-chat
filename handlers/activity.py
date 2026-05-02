@@ -41,11 +41,7 @@ async def activity_handler(message: Message):
     if last_text and last_text.strip().lower() == text.lower():
         return
 
-    role = get_active_role(user_id)
-
-    reward = 2
-    if role == "basic":
-        reward = 3
+    reward = 3 if get_active_role(user_id) == "basic" else 2
 
     add_balance(user_id, reward)
     update_last_msg(user_id, text)

@@ -67,9 +67,7 @@ async def buy_stars_pack(callback: CallbackQuery):
         description=f"Поповнення балансу на {coins} NC",
         payload=f"nyxcoins:{coins}:{stars}",
         currency="XTR",
-        prices=[
-            LabeledPrice(label=f"{coins} Nyx Coin", amount=stars)
-        ],
+        prices=[LabeledPrice(label=f"{coins} Nyx Coin", amount=stars)],
         provider_token=""
     )
 
@@ -95,7 +93,7 @@ async def successful_payment(message: Message):
 
     parts = payload.split(":")
     coins = int(parts[1])
-    stars = int(parts[2]) if len(parts) >= 3 else payment.total_amount
+    stars = int(parts[2])
 
     register_user(message.from_user.id, message.from_user.username)
     add_balance(message.from_user.id, coins)
@@ -111,8 +109,7 @@ async def successful_payment(message: Message):
     await message.answer(
         f"✅ Оплата успішна!\n\n"
         f"⭐ Оплачено: {stars} Stars\n"
-        f"💰 Додано: {coins} NC\n"
-        f"Баланс оновлено."
+        f"💰 Додано: {coins} NC"
     )
 
     for admin_id in ADMIN_IDS:
@@ -120,7 +117,7 @@ async def successful_payment(message: Message):
             await message.bot.send_message(
                 admin_id,
                 f"💎 Новий донат!\n\n"
-                f"👤 Користувач: @{message.from_user.username if message.from_user.username else 'без username'}\n"
+                f"👤 @{message.from_user.username if message.from_user.username else 'без username'}\n"
                 f"🆔 ID: {message.from_user.id}\n"
                 f"⭐ Stars: {stars}\n"
                 f"💰 Видано: {coins} NC"
