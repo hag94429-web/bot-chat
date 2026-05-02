@@ -135,10 +135,7 @@ def get_top(limit=10):
     cur = conn.cursor()
 
     cur.execute("""
-    SELECT 
-        COALESCE(username, 'user_' || user_id),
-        user_id,
-        balance
+    SELECT username, user_id, balance
     FROM users
     ORDER BY balance DESC
     LIMIT ?
