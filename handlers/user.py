@@ -251,10 +251,10 @@ async def uah_paid_callback(callback: CallbackQuery):
                 "https://send.monobank.ua/jar/9mkvsU4izA\n\n"
                 "Після перевірки: \n"
                 f"• /give {user.id} сума\n"
-                "• aбо видати Premium"
+                "• aбо видати Premium",
                 parse_mode="HTML"
             )
-            
+
         except Exception:
             pass
 
