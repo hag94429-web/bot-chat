@@ -16,6 +16,9 @@ STAR_PACKS = {
     "s50": {"stars": 50, "coins": 6500},
     "s100": {"stars": 100, "coins": 14000},
     "s200": {"stars": 200, "coins": 32000},
+
+    "prem_3m": {"stars": 1100, "premium": "Telegram Premium 3 місяці"},
+    "prem_6m": {"stars": 1700, "premium": "Telegram Premium 6 місяців"},
 }
 
 
@@ -29,26 +32,29 @@ def stars_keyboard():
     kb.button(text="🔥 ⭐ 100 → 14000 NC", callback_data="stars:s100")
     kb.button(text="💎 ⭐ 200 → 32000 NC", callback_data="stars:s200")
 
+    kb.button(text="🎁 Premium 3 міс — 1100⭐", callback_data="stars:prem_3m")
+    kb.button(text="🎁 Premium 6 міс — 1700⭐", callback_data="stars:prem_6m")
+
     kb.adjust(1)
     return kb.as_markup()
 
 
 @router.message(Command("stars"))
 async def stars_cmd(message: Message):
-    register_user(
-        message.from_user.id,
-        message.from_user.username,
-        message.from_user.full_name
-    )
+    register_user(message.from_user.id, message.from_user.username, message.from_user.full_name)
 
     await message.answer(
-        "⭐ Купівля Nyx Coin за Telegram Stars\n\n"
+        "⭐ Купівля за Telegram Stars\n\n"
+        "💰 Nyx Coin:\n"
         "5⭐ = 700 NC\n"
         "10⭐ = 1200 NC\n"
         "25⭐ = 3000 NC\n"
         "50⭐ = 6500 NC\n"
         "100⭐ = 14000 NC 🔥\n"
         "200⭐ = 32000 NC 💎\n\n"
+        "🎁 Telegram Premium:\n"
+        "1100⭐ = Premium 3 місяці\n"
+        "1700⭐ = Premium 6 місяців\n\n"
         "Обери пакет:",
         reply_markup=stars_keyboard()
     )
@@ -64,18 +70,30 @@ async def buy_stars_pack(callback: CallbackQuery):
         return
 
     stars = pack["stars"]
-    coins = pack["coins"]
 
-    await callback.message.answer_invoice(
-        title=f"{coins} Nyx Coin",
-        description=f"Поповнення балансу на {coins} NC",
-        payload=f"nyxcoins:{coins}:{stars}",
-        currency="XTR",
-        prices=[
-            LabeledPrice(label=f"{coins} Nyx Coin", amount=stars)
-        ],
-        provider_token=""
-    )
+    if "coins" in pack:
+        coins = pack["coins"]
+
+        await callback.message.answer_invoice(
+            title=f"{coins} Nyx Coin",
+            description=f"Поповнення балансу на {coins} NC",
+            payload=f"nyxcoins:{coins}:{stars}",
+            currency="XTR",
+            prices=[LabeledPrice(label=f"{coins} Nyx Coin", amount=stars)],
+            provider_token=""
+        )
+
+    elif "premium" in pack:
+        premium = pack["premium"]
+
+        await callback.message.answer_invoice(
+            title=premium,
+            description="Заявка на Telegram Premium. Після оплати адмін видасть Premium вручну.",
+            payload=f"premium:{pack_key}:{stars}",
+            currency="XTR",
+            prices=[LabeledPrice(label=premium, amount=stars)],
+            provider_token=""
+        )
 
     await callback.answer()
 
@@ -94,44 +112,73 @@ async def successful_payment(message: Message):
 
     payload = payment.invoice_payload
 
-    if not payload.startswith("nyxcoins:"):
-        return
+    register_user(message.from_user.id, message.from_user.username, message.from_user.full_name)
 
-    parts = payload.split(":")
-    coins = int(parts[1])
-    stars = int(parts[2])
+    if payload.startswith("nyxcoins:"):
+        parts = payload.split(":")
+        coins = int(parts[1])
+        stars = int(parts[2])
 
-    register_user(
-        message.from_user.id,
-        message.from_user.username,
-        message.from_user.full_name
-    )
+        add_balance(message.from_user.id, coins)
 
-    add_balance(message.from_user.id, coins)
+        add_log(
+            message.from_user.id,
+            message.from_user.username,
+            "donate_stars",
+            stars,
+            f"+{coins} NC"
+        )
 
-    add_log(
-        message.from_user.id,
-        message.from_user.username,
-        "donate_stars",
-        stars,
-        f"+{coins} NC"
-    )
+        await message.answer(
+            f"✅ Оплата успішна!\n\n"
+            f"⭐ Оплачено: {stars} Stars\n"
+            f"💰 Додано: {coins} NC"
+        )
 
-    await message.answer(
-        f"✅ Оплата успішна!\n\n"
-        f"⭐ Оплачено: {stars} Stars\n"
-        f"💰 Додано: {coins} NC"
-    )
+        for admin_id in ADMIN_IDS:
+            try:
+                await message.bot.send_message(
+                    admin_id,
+                    f"💎 Новий донат!\n\n"
+                    f"👤 @{message.from_user.username if message.from_user.username else message.from_user.full_name}\n"
+                    f"🆔 ID: {message.from_user.id}\n"
+                    f"⭐ Stars: {stars}\n"
+                    f"💰 Видано: {coins} NC"
+                )
+            except Exception:
+                pass
 
-    for admin_id in ADMIN_IDS:
-        try:
-            await message.bot.send_message(
-                admin_id,
-                f"💎 Новий донат!\n\n"
-                f"👤 @{message.from_user.username if message.from_user.username else message.from_user.full_name}\n"
-                f"🆔 ID: {message.from_user.id}\n"
-                f"⭐ Stars: {stars}\n"
-                f"💰 Видано: {coins} NC"
-            )
-        except Exception:
-            pass
+    elif payload.startswith("premium:"):
+        parts = payload.split(":")
+        pack_key = parts[1]
+        stars = int(parts[2])
+        premium = STAR_PACKS[pack_key]["premium"]
+
+        add_log(
+            message.from_user.id,
+            message.from_user.username,
+            "premium_request",
+            stars,
+            premium
+        )
+
+        await message.answer(
+            f"✅ Оплата Premium прийнята!\n\n"
+            f"🎁 Товар: {premium}\n"
+            f"⭐ Оплачено: {stars} Stars\n\n"
+            f"⏳ Адмін перевірить оплату і видасть Premium вручну."
+        )
+
+        for admin_id in ADMIN_IDS:
+            try:
+                await message.bot.send_message(
+                    admin_id,
+                    f"🎁 Нова заявка на Telegram Premium!\n\n"
+                    f"👤 @{message.from_user.username if message.from_user.username else message.from_user.full_name}\n"
+                    f"🆔 ID: {message.from_user.id}\n"
+                    f"📦 Товар: {premium}\n"
+                    f"⭐ Оплачено: {stars} Stars\n\n"
+                    f"Видай Premium вручну."
+                )
+            except Exception:
+                pass
