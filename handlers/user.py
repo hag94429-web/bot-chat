@@ -253,7 +253,8 @@ async def uah_paid_callback(callback: CallbackQuery):
                 f"• /give {user.id} сума\n"
                 "• aбо видати Premium"
                 parse_mode="HTML"
-            ),
+            )
+            
         except Exception:
             pass
 
