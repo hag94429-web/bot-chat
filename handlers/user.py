@@ -1,6 +1,7 @@
-from aiogram import Router
+from aiogram import Router, F
 from aiogram.filters import Command
-from aiogram.types import Message
+from aiogram.types import Message, CallbackQuery
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from config import DAILY_REWARD, ADMIN_IDS
 from database import (
@@ -43,6 +44,7 @@ async def start_cmd(message: Message):
         "/top — топ по NC\n"
         "/shop — магазин\n"
         "/stars — купити NC за ⭐\n"
+        "/uah — купити NC за грн\n"
         "/pay — переказ NC\n"
         "/case — відкрити кейс\n"
         "/topdonate — топ донатерів"
@@ -184,3 +186,76 @@ async def topdonate_cmd(message: Message):
         text += f"{i}. {name} — {total}⭐\n"
 
     await message.answer(text)
+
+
+@router.message(Command("uah"))
+async def uah_cmd(message: Message):
+    register_user(
+        message.from_user.id,
+        message.from_user.username,
+        message.from_user.full_name
+    )
+
+    kb = InlineKeyboardBuilder()
+
+    kb.button(
+        text="💳 Оплатити через Monobank",
+        url="https://send.monobank.ua/jar/9mkvsU4izA"
+    )
+
+    kb.button(
+        text="✅ Я оплатив",
+        callback_data="uah_paid"
+    )
+
+    kb.adjust(1)
+
+    await message.answer(
+        "💳 Купівля Nyx Coin за гривні\n\n"
+        "5 грн  → 700 NC\n"
+        "10 грн → 1200 NC\n"
+        "25 грн → 3000 NC\n"
+        "50 грн → 6500 NC\n"
+        "90 грн → 14000 NC\n"
+        "160 грн → 32000 NC\n\n"
+        "1️⃣ Натисни кнопку оплати\n"
+        "2️⃣ Оплати потрібну суму\n"
+        "3️⃣ Натисни «✅ Я оплатив»\n\n"
+        "⚠️ Після перевірки адмін видасть NC вручну.",
+        reply_markup=kb.as_markup()
+    )
+
+
+@router.callback_query(F.data == "uah_paid")
+async def uah_paid_callback(callback: CallbackQuery):
+    user = callback.from_user
+
+    register_user(user.id, user.username, user.full_name)
+
+    if user.username:
+        name = f"@{user.username}"
+    else:
+        name = f'<a href="tg://user?id={user.id}">{user.full_name}</a>'
+
+    for admin_id in ADMIN_IDS:
+        try:
+            await callback.bot.send_message(
+                admin_id,
+                "💳 НОВА ОПЛАТА ЗА ГРН\n\n"
+                f"👤 Користувач: {name}\n"
+                f"🆔 ID: {user.id}\n\n"
+                "Перевір Monobank банку:\n"
+                "https://send.monobank.ua/jar/9mkvsU4izA\n\n"
+                "Після перевірки видай NC:\n"
+                f"/give {user.id} сума",
+                parse_mode="HTML"
+            )
+        except Exception:
+            pass
+
+    await callback.answer("✅ Заявку відправлено адміну.", show_alert=True)
+
+    await callback.message.answer(
+        "✅ Заявку відправлено адміну.\n\n"
+        "Після перевірки оплати тобі видадуть NC."
+    )
