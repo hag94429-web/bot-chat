@@ -1,3 +1,4 @@
+import asyncio
 import random
 import time
 
@@ -18,13 +19,14 @@ from database import (
     set_emoji_status,
     set_basic_role
 )
+from utils import auto_delete
 
 router = Router()
 
 PAY_MIN = 50
 PAY_COOLDOWN = 10
 
-CASE_PRICE = 600
+CASE_PRICE = 1000
 CASE_COOLDOWN = 20
 
 
@@ -33,41 +35,51 @@ async def pay_cmd(message: Message):
     sender_id = message.from_user.id
     username = message.from_user.username
 
-    register_user(sender_id, username)
+    register_user(
+        sender_id,
+        username,
+        message.from_user.full_name
+    )
 
     args = message.text.split()
 
     if len(args) != 3:
-        await message.answer("❌ Використання: /pay user_id сума")
+        msg = await message.answer("❌ Використання: /pay user_id сума")
+        asyncio.create_task(auto_delete(msg, 10))
         return
 
     try:
         receiver_id = int(args[1])
         amount = int(args[2])
     except ValueError:
-        await message.answer("❌ user_id і сума мають бути числами.")
+        msg = await message.answer("❌ user_id і сума мають бути числами.")
+        asyncio.create_task(auto_delete(msg, 10))
         return
 
     if receiver_id == sender_id:
-        await message.answer("❌ Не можна переказати собі.")
+        msg = await message.answer("❌ Не можна переказати собі.")
+        asyncio.create_task(auto_delete(msg, 10))
         return
 
     if amount < PAY_MIN:
-        await message.answer(f"❌ Мінімальний переказ: {PAY_MIN} NC.")
+        msg = await message.answer(f"❌ Мінімальний переказ: {PAY_MIN} NC.")
+        asyncio.create_task(auto_delete(msg, 10))
         return
 
     now = int(time.time())
     last_pay = get_last_pay_time(sender_id)
 
     if last_pay and now - int(last_pay) < PAY_COOLDOWN:
-        await message.answer("⏳ Зачекай перед наступним переказом.")
+        msg = await message.answer("⏳ Зачекай перед наступним переказом.")
+        asyncio.create_task(auto_delete(msg, 10))
         return
 
     if not spend_balance(sender_id, amount):
-        await message.answer("❌ Недостатньо NC.")
+        msg = await message.answer("❌ Недостатньо NC.")
+        asyncio.create_task(auto_delete(msg, 10))
         return
 
-    register_user(receiver_id, None)
+    register_user(receiver_id)
     add_balance(receiver_id, amount)
     set_last_pay_time(sender_id)
 
@@ -82,17 +94,26 @@ async def case_cmd(message: Message):
     user_id = message.from_user.id
     username = message.from_user.username
 
-    register_user(user_id, username)
+    register_user(
+        user_id,
+        username,
+        message.from_user.full_name
+    )
 
     now = int(time.time())
     last_case = get_last_case_time(user_id)
 
     if last_case and now - int(last_case) < CASE_COOLDOWN:
-        await message.answer("⏳ Зачекай перед наступним кейсом.")
+        msg = await message.answer("⏳ Зачекай перед наступним кейсом.")
+        asyncio.create_task(auto_delete(msg, 10))
         return
 
     if not spend_balance(user_id, CASE_PRICE):
-        await message.answer(f"❌ Кейc коштує {CASE_PRICE} NC. У тебе: {get_balance(user_id)} NC.")
+        msg = await message.answer(
+            f"❌ Кейc коштує {CASE_PRICE} NC.\n"
+            f"У тебе: {get_balance(user_id)} NC."
+        )
+        asyncio.create_task(auto_delete(msg, 10))
         return
 
     set_last_case_time(user_id)
@@ -107,7 +128,7 @@ async def case_cmd(message: Message):
             ("vip", 0),
             ("nothing", 0)
         ],
-        weights=[35, 25, 18, 8, 7, 4, 3],
+        weights=[40, 28, 18, 4, 6, 2, 2],
         k=1
     )[0]
 
@@ -118,7 +139,8 @@ async def case_cmd(message: Message):
     if reward_type == "money":
         add_balance(user_id, value)
         add_log(user_id, username, "case_reward", value, "NC")
-        await message.answer(
+
+        msg = await message.answer(
             f"🎁 Ти відкрив кейс за {CASE_PRICE} NC\n\n"
             f"💰 Випало: {value} NC"
         )
@@ -127,21 +149,25 @@ async def case_cmd(message: Message):
         emoji = random.choice(["🔥", "💎", "👑", "⚡"])
         set_emoji_status(user_id, emoji)
         add_log(user_id, username, "case_reward", 0, f"emoji {emoji}")
-        await message.answer(
+
+        msg = await message.answer(
             f"🎁 Ти відкрив кейс за {CASE_PRICE} NC\n\n"
             f"😊 Випав emoji статус: {emoji} на 1 день"
         )
 
     elif reward_type == "vip":
-        set_basic_role(user_id)
+        set_basic_role(user_id, 1)
         add_log(user_id, username, "case_reward", 0, "BASIC VIP")
-        await message.answer(
+
+        msg = await message.answer(
             f"🎁 Ти відкрив кейс за {CASE_PRICE} NC\n\n"
             f"⭐ Випав BASIC VIP на 1 день"
         )
 
     else:
-        await message.answer(
+        msg = await message.answer(
             f"🎁 Ти відкрив кейс за {CASE_PRICE} NC\n\n"
             f"😢 Нічого не випало."
         )
+
+    asyncio.create_task(auto_delete(msg, 20))

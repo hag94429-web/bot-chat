@@ -23,7 +23,7 @@ def is_admin(user_id: int) -> bool:
     return user_id in ADMIN_IDS
 
 
-def get_display_name(username, full_name, user_id):
+def display_name(username, full_name, user_id):
     if username:
         return f"@{username}"
     if full_name:
@@ -33,11 +33,7 @@ def get_display_name(username, full_name, user_id):
 
 @router.message(Command("start"))
 async def start_cmd(message: Message):
-    register_user(
-        message.from_user.id,
-        message.from_user.username,
-        message.from_user.full_name
-    )
+    register_user(message.from_user.id, message.from_user.username, message.from_user.full_name)
 
     await message.answer(
         "🌙 Nyx Coin бот активний!\n\n"
@@ -56,7 +52,6 @@ async def start_cmd(message: Message):
 @router.message(Command("profile"))
 async def profile_cmd(message: Message):
     user_id = message.from_user.id
-
     register_user(user_id, message.from_user.username, message.from_user.full_name)
 
     balance = get_balance(user_id)
@@ -73,19 +68,13 @@ async def profile_cmd(message: Message):
 
 @router.message(Command("balance"))
 async def balance_cmd(message: Message):
-    register_user(
-        message.from_user.id,
-        message.from_user.username,
-        message.from_user.full_name
-    )
-
+    register_user(message.from_user.id, message.from_user.username, message.from_user.full_name)
     await message.answer(f"💰 Твій баланс: {get_balance(message.from_user.id)} NC")
 
 
 @router.message(Command("daily"))
 async def daily_cmd(message: Message):
     user_id = message.from_user.id
-
     register_user(user_id, message.from_user.username, message.from_user.full_name)
 
     if not can_daily(user_id):
@@ -116,7 +105,7 @@ async def top_cmd(message: Message):
     for i, row in enumerate(rows, start=1):
         username, full_name, user_id, balance = row
 
-        name = get_display_name(username, full_name, user_id)
+        name = display_name(username, full_name, user_id)
         emoji = get_active_emoji(user_id)
         role = get_active_role(user_id)
 

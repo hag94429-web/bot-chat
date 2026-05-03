@@ -35,7 +35,11 @@ def stars_keyboard():
 
 @router.message(Command("stars"))
 async def stars_cmd(message: Message):
-    register_user(message.from_user.id, message.from_user.username)
+    register_user(
+        message.from_user.id,
+        message.from_user.username,
+        message.from_user.full_name
+    )
 
     await message.answer(
         "⭐ Купівля Nyx Coin за Telegram Stars\n\n"
@@ -67,7 +71,9 @@ async def buy_stars_pack(callback: CallbackQuery):
         description=f"Поповнення балансу на {coins} NC",
         payload=f"nyxcoins:{coins}:{stars}",
         currency="XTR",
-        prices=[LabeledPrice(label=f"{coins} Nyx Coin", amount=stars)],
+        prices=[
+            LabeledPrice(label=f"{coins} Nyx Coin", amount=stars)
+        ],
         provider_token=""
     )
 
@@ -95,7 +101,12 @@ async def successful_payment(message: Message):
     coins = int(parts[1])
     stars = int(parts[2])
 
-    register_user(message.from_user.id, message.from_user.username)
+    register_user(
+        message.from_user.id,
+        message.from_user.username,
+        message.from_user.full_name
+    )
+
     add_balance(message.from_user.id, coins)
 
     add_log(
@@ -117,7 +128,7 @@ async def successful_payment(message: Message):
             await message.bot.send_message(
                 admin_id,
                 f"💎 Новий донат!\n\n"
-                f"👤 @{message.from_user.username if message.from_user.username else 'без username'}\n"
+                f"👤 @{message.from_user.username if message.from_user.username else message.from_user.full_name}\n"
                 f"🆔 ID: {message.from_user.id}\n"
                 f"⭐ Stars: {stars}\n"
                 f"💰 Видано: {coins} NC"

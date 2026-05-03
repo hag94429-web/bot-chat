@@ -24,7 +24,6 @@ def init_db():
     """)
 
     for column in [
-        "full_name TEXT",
         "emoji_status TEXT",
         "emoji_until INTEGER",
         "role TEXT",
@@ -32,7 +31,9 @@ def init_db():
         "last_msg_time INTEGER",
         "last_msg_text TEXT",
         "last_pay_time INTEGER",
-        "last_case_time INTEGER"
+        "last_case_time INTEGER",
+        "last_bonus_time INTEGER",
+        "last_roulette_time INTEGER"
     ]:
         try:
             cur.execute(f"ALTER TABLE users ADD COLUMN {column}")
@@ -54,6 +55,8 @@ def init_db():
     conn.commit()
     conn.close()
 
+
+# --- USER ---
 
 def register_user(user_id, username=None, full_name=None):
     conn = connect()
@@ -77,8 +80,10 @@ def register_user(user_id, username=None, full_name=None):
 def get_balance(user_id):
     conn = connect()
     cur = conn.cursor()
+
     cur.execute("SELECT balance FROM users WHERE user_id = ?", (user_id,))
     row = cur.fetchone()
+
     conn.close()
     return row[0] if row else 0
 
@@ -107,15 +112,18 @@ def spend_balance(user_id, amount):
     return True
 
 
+# --- DAILY ---
+
 def can_daily(user_id):
     today = str(date.today())
 
     conn = connect()
     cur = conn.cursor()
+
     cur.execute("SELECT last_daily FROM users WHERE user_id = ?", (user_id,))
     row = cur.fetchone()
-    conn.close()
 
+    conn.close()
     return not row or row[0] != today
 
 
@@ -133,6 +141,8 @@ def set_daily(user_id):
     conn.close()
 
 
+# --- TOP ---
+
 def get_top(limit=10):
     conn = connect()
     cur = conn.cursor()
@@ -148,6 +158,8 @@ def get_top(limit=10):
     conn.close()
     return rows
 
+
+# --- EMOJI ---
 
 def set_emoji_status(user_id, emoji):
     expire = int(time.time()) + 86400
@@ -181,19 +193,21 @@ def get_active_emoji(user_id):
     if not row:
         return ""
 
-    emoji, emoji_until = row
+    emoji, until = row
 
-    if not emoji or not emoji_until:
+    if not emoji or not until:
         return ""
 
-    if int(time.time()) > int(emoji_until):
+    if int(time.time()) > int(until):
         return ""
 
     return emoji
 
 
-def set_basic_role(user_id):
-    expire = int(time.time()) + 86400
+# --- VIP ---
+
+def set_basic_role(user_id, days=1):
+    expire = int(time.time()) + days * 86400
 
     conn = connect()
     cur = conn.cursor()
@@ -224,16 +238,18 @@ def get_active_role(user_id):
     if not row:
         return ""
 
-    role, role_until = row
+    role, until = row
 
-    if not role or not role_until:
+    if not role or not until:
         return ""
 
-    if int(time.time()) > int(role_until):
+    if int(time.time()) > int(until):
         return ""
 
     return role
 
+
+# --- ACTIVITY ---
 
 def update_last_msg(user_id, text):
     conn = connect()
@@ -265,55 +281,62 @@ def get_last_msg(user_id):
     return row if row else (0, "")
 
 
-def get_last_pay_time(user_id):
+# --- TIME FIELDS ---
+
+def get_time(user_id, field):
     conn = connect()
     cur = conn.cursor()
 
-    cur.execute("SELECT last_pay_time FROM users WHERE user_id = ?", (user_id,))
+    cur.execute(f"SELECT {field} FROM users WHERE user_id = ?", (user_id,))
     row = cur.fetchone()
 
     conn.close()
     return row[0] if row and row[0] else 0
+
+
+def set_time(user_id, field):
+    conn = connect()
+    cur = conn.cursor()
+
+    cur.execute(f"UPDATE users SET {field} = ? WHERE user_id = ?", (int(time.time()), user_id))
+
+    conn.commit()
+    conn.close()
+
+
+def get_last_bonus_time(user_id):
+    return get_time(user_id, "last_bonus_time")
+
+
+def set_last_bonus_time(user_id):
+    set_time(user_id, "last_bonus_time")
+
+
+def get_last_roulette_time(user_id):
+    return get_time(user_id, "last_roulette_time")
+
+
+def set_last_roulette_time(user_id):
+    set_time(user_id, "last_roulette_time")
+
+
+def get_last_pay_time(user_id):
+    return get_time(user_id, "last_pay_time")
 
 
 def set_last_pay_time(user_id):
-    conn = connect()
-    cur = conn.cursor()
-
-    cur.execute("""
-    UPDATE users
-    SET last_pay_time = ?
-    WHERE user_id = ?
-    """, (int(time.time()), user_id))
-
-    conn.commit()
-    conn.close()
+    set_time(user_id, "last_pay_time")
 
 
 def get_last_case_time(user_id):
-    conn = connect()
-    cur = conn.cursor()
-
-    cur.execute("SELECT last_case_time FROM users WHERE user_id = ?", (user_id,))
-    row = cur.fetchone()
-
-    conn.close()
-    return row[0] if row and row[0] else 0
+    return get_time(user_id, "last_case_time")
 
 
 def set_last_case_time(user_id):
-    conn = connect()
-    cur = conn.cursor()
+    set_time(user_id, "last_case_time")
 
-    cur.execute("""
-    UPDATE users
-    SET last_case_time = ?
-    WHERE user_id = ?
-    """, (int(time.time()), user_id))
 
-    conn.commit()
-    conn.close()
-
+# --- LOGS ---
 
 def add_log(user_id, username, action, amount, item):
     conn = connect()
@@ -349,11 +372,11 @@ def get_top_donates(limit=10):
     cur = conn.cursor()
 
     cur.execute("""
-    SELECT username, user_id, SUM(amount) as total
+    SELECT username, user_id, SUM(amount)
     FROM logs
     WHERE action = 'donate_stars'
     GROUP BY user_id
-    ORDER BY total DESC
+    ORDER BY SUM(amount) DESC
     LIMIT ?
     """, (limit,))
 

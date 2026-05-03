@@ -28,9 +28,12 @@ async def activity_handler(message: Message):
         return
 
     user_id = message.from_user.id
-    username = message.from_user.username
 
-    register_user(user_id, username)
+    register_user(
+        user_id,
+        message.from_user.username,
+        message.from_user.full_name
+    )
 
     last_time, last_text = get_last_msg(user_id)
     now = int(time.time())
