@@ -210,20 +210,23 @@ async def uah_cmd(message: Message):
 
     kb.adjust(1)
 
-    await message.answer(
-        "💳 Купівля Nyx Coin за гривні\n\n"
-        "5 грн  → 700 NC\n"
-        "10 грн → 1200 NC\n"
-        "25 грн → 3000 NC\n"
-        "50 грн → 6500 NC\n"
-        "90 грн → 14000 NC\n"
-        "160 грн → 32000 NC\n\n"
-        "1️⃣ Натисни кнопку оплати\n"
-        "2️⃣ Оплати потрібну суму\n"
-        "3️⃣ Натисни «✅ Я оплатив»\n\n"
-        "⚠️ Після перевірки адмін видасть NC вручну.",
-        reply_markup=kb.as_markup()
-    )
+await message.answer(
+    "💳 Купівля Nyx Coin за гривні\n\n"
+    "5 грн  → 700 NC\n"
+    "10 грн → 1200 NC\n"
+    "25 грн → 3000 NC\n"
+    "50 грн → 6500 NC\n"
+    "90 грн → 14000 NC\n"
+    "160 грн → 32000 NC\n\n"
+    "🎁 Telegram Premium:\n"
+    "3 місяці → 1100⭐ або оплата грн за домовленістю\n"
+    "6 місяців → 1700⭐ або оплата грн за домовленістю\n\n"
+    "1️⃣ Натисни кнопку оплати\n"
+    "2️⃣ Оплати потрібну суму\n"
+    "3️⃣ Натисни «✅ Я оплатив»\n\n"
+    "⚠️ Після перевірки адмін видасть NC або Premium вручну.",
+    reply_markup=kb.as_markup()
+)
 
 
 @router.callback_query(F.data == "uah_paid")
@@ -247,7 +250,8 @@ async def uah_paid_callback(callback: CallbackQuery):
                 "Перевір Monobank банку:\n"
                 "https://send.monobank.ua/jar/9mkvsU4izA\n\n"
                 "Після перевірки видай NC:\n"
-                f"/give {user.id} сума",
+                f"• якщо NC → /give {user.id} сума\n"
+                "• якщо Premium → видай Premium вручну"
                 parse_mode="HTML"
             )
         except Exception:
