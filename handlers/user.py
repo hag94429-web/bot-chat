@@ -249,11 +249,11 @@ async def uah_paid_callback(callback: CallbackQuery):
                 f"🆔 ID: {user.id}\n\n"
                 "Перевір Monobank банку:\n"
                 "https://send.monobank.ua/jar/9mkvsU4izA\n\n"
-                "Після перевірки видай NC:\n"
-                f"• якщо NC → /give {user.id} сума\n"
-                "• якщо Premium → видай Premium вручну"
+                "Після перевірки: \n"
+                f"• /give {user.id} сума\n"
+                "• aбо видати Premium"
                 parse_mode="HTML"
-            )
+            ),
         except Exception:
             pass
 
