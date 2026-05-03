@@ -27,7 +27,7 @@ PAY_MIN = 50
 PAY_COOLDOWN = 10
 
 CASE_PRICE = 600
-CASE_COOLDOWN = 20
+CASE_COOLDOWN = 0
 
 
 @router.message(Command("pay"))
