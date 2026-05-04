@@ -2,7 +2,7 @@ import asyncio
 import random
 import time
 
-from aiogram import Router
+from aiogram import Router, F
 from aiogram.filters import Command
 from aiogram.types import Message
 
@@ -26,20 +26,17 @@ router = Router()
 PAY_MIN = 50
 PAY_COOLDOWN = 10
 
-CASE_PRICE = 600
+CASE_PRICE = 1000
 CASE_COOLDOWN = 20
 
 
+# 💸 Переказ
 @router.message(Command("pay"))
 async def pay_cmd(message: Message):
     sender_id = message.from_user.id
     username = message.from_user.username
 
-    register_user(
-        sender_id,
-        username,
-        message.from_user.full_name
-    )
+    register_user(sender_id, username, message.from_user.full_name)
 
     args = message.text.split()
 
@@ -89,16 +86,13 @@ async def pay_cmd(message: Message):
     await message.answer(f"✅ Переказано {amount} NC користувачу {receiver_id}.")
 
 
+# 🎁 Кейс
 @router.message(Command("case"))
 async def case_cmd(message: Message):
     user_id = message.from_user.id
     username = message.from_user.username
 
-    register_user(
-        user_id,
-        username,
-        message.from_user.full_name
-    )
+    register_user(user_id, username, message.from_user.full_name)
 
     now = int(time.time())
     last_case = get_last_case_time(user_id)
@@ -172,6 +166,8 @@ async def case_cmd(message: Message):
 
     asyncio.create_task(auto_delete(msg, 20))
 
+
+# 🔥 ТРИГЕР "кейс"
 @router.message(F.text.lower() == "кейс")
 async def case_text(message: Message):
     await case_cmd(message)
