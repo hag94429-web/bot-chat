@@ -171,3 +171,8 @@ async def case_cmd(message: Message):
         )
 
     asyncio.create_task(auto_delete(msg, 20))
+
+@router.message(F.text.lower() == "кейс")
+async def case_text(message: Message):
+    await case_cmd(message)
+    
