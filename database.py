@@ -111,12 +111,9 @@ def spend_balance(user_id, amount):
     add_balance(user_id, -amount)
     return True
 
-
 # --- DAILY ---
 
 def can_daily(user_id):
-    today = str(date.today())
-
     conn = connect()
     cur = conn.cursor()
 
@@ -124,8 +121,16 @@ def can_daily(user_id):
     row = cur.fetchone()
 
     conn.close()
-    return not row or row[0] != today
 
+    if not row or not row[0]:
+        return True
+
+    try:
+        last = int(row[0])
+    except:
+        return True
+
+    return time.time() - last >= 18000  
 
 def set_daily(user_id):
     conn = connect()
@@ -135,11 +140,10 @@ def set_daily(user_id):
     UPDATE users
     SET last_daily = ?
     WHERE user_id = ?
-    """, (str(date.today()), user_id))
+    """, (int(time.time()), user_id))
 
     conn.commit()
     conn.close()
-
 
 # --- TOP ---
 
