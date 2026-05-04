@@ -112,18 +112,18 @@ async def case_cmd(message: Message):
 
     msg = await message.answer("📦 Відкриваємо кейс...")
 
-frames = [
-    "📦 ░░░░░░",
-    "📦 ███░░░",
-    "📦 ██████",
-]
+    frames = [
+        "📦 ░░░░░░",
+        "📦 ███░░░",
+        "📦 ██████",
+    ]
 
-for frame in frames:
-    await asyncio.sleep(0.5)
-    try:
-        await msg.edit_text(frame)
-    except:
-        pass
+    for frame in frames:
+        await asyncio.sleep(0.5)
+        try:
+            await msg.edit_text(frame)
+        except:
+            pass
 
     reward = random.choices(
         population=[
@@ -148,59 +148,32 @@ for frame in frames:
         add_log(user_id, username, "case_reward", value, "NC")
 
         if value >= 3000:
-            jackpot_frames = [
-                "💥 ДЖЕКПОТ!!!",
-                "💥💥 ДЖЕКПОТ!!! 💥💥",
-                "💎💎💎💎💎",
-                "💰💰💰💰💰",
-            ]
+            try:
+                await msg.edit_text("💥 ДЖЕКПОТ 💥")
+                await asyncio.sleep(0.6)
+            except:
+                pass
 
-            for frame in jackpot_frames:
-                await asyncio.sleep(0.4)
-                try:
-                    await msg.edit_text(frame)
-                except Exception:
-                    pass
-
-            text = (
-                f"💥 ДЖЕКПОТ!!!\n\n"
-                f"💎 Тобі випало: {value} NC"
-            )
-
+            text = f"💥 ДЖЕКПОТ!!!\n\n💰 Випало: {value} NC"
         else:
-            text = (
-                f"🎁 Ти відкрив кейс за {CASE_PRICE} NC\n\n"
-                f"💰 Випало: {value} NC"
-            )
+            text = f"🎁 Випало: {value} NC"
 
     elif reward_type == "emoji":
         emoji = random.choice(["🔥", "💎", "👑", "⚡"])
         set_emoji_status(user_id, emoji)
-        add_log(user_id, username, "case_reward", 0, f"emoji {emoji}")
 
-        text = (
-            f"🎁 Ти відкрив кейс за {CASE_PRICE} NC\n\n"
-            f"😊 Випав emoji статус: {emoji} на 1 день"
-        )
+        text = f"😊 Emoji: {emoji}"
 
     elif reward_type == "vip":
         set_basic_role(user_id, 1)
-        add_log(user_id, username, "case_reward", 0, "BASIC VIP")
-
-        text = (
-            f"🎁 Ти відкрив кейс за {CASE_PRICE} NC\n\n"
-            f"⭐ Випав BASIC VIP на 1 день"
-        )
+        text = "⭐ VIP на 1 день!"
 
     else:
-        text = (
-            f"🎁 Ти відкрив кейс за {CASE_PRICE} NC\n\n"
-            f"😢 Нічого не випало"
-        )
+        text = "😢 Нічого не випало"
 
     try:
         await msg.edit_text(text)
-    except Exception:
+    except:
         pass
 
     asyncio.create_task(auto_delete(msg, 20))
