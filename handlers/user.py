@@ -19,10 +19,8 @@ from database import (
 
 router = Router()
 
-
 def is_admin(user_id: int) -> bool:
     return user_id in ADMIN_IDS
-
 
 def display_name(username, full_name, user_id):
     if username:
@@ -30,7 +28,6 @@ def display_name(username, full_name, user_id):
     if full_name:
         return f'<a href="tg://user?id={user_id}">{full_name}</a>'
     return f'<a href="tg://user?id={user_id}">user</a>'
-
 
 @router.message(Command("start"))
 async def start_cmd(message: Message):
@@ -50,7 +47,6 @@ async def start_cmd(message: Message):
         "/topdonate — топ донатерів"
     )
 
-
 @router.message(Command("profile"))
 async def profile_cmd(message: Message):
     user_id = message.from_user.id
@@ -67,12 +63,10 @@ async def profile_cmd(message: Message):
         f"⭐ Роль: {'BASIC VIP' if role == 'basic' else 'немає'}"
     )
 
-
 @router.message(Command("balance"))
 async def balance_cmd(message: Message):
     register_user(message.from_user.id, message.from_user.username, message.from_user.full_name)
     await message.answer(f"💰 Твій баланс: {get_balance(message.from_user.id)} NC")
-
 
 @router.message(Command("daily"))
 async def daily_cmd(message: Message):
@@ -92,7 +86,6 @@ async def daily_cmd(message: Message):
     set_daily(user_id)
 
     await message.answer(f"🎁 Ти отримав {reward} NC!")
-
 
 @router.message(Command("top"))
 async def top_cmd(message: Message):
@@ -117,7 +110,6 @@ async def top_cmd(message: Message):
         text += f"{i}. {emoji_prefix}{role_prefix}{name} — {balance} NC\n"
 
     await message.answer(text, parse_mode="HTML")
-
 
 @router.message(Command("give"))
 async def give_cmd(message: Message):
@@ -147,7 +139,6 @@ async def give_cmd(message: Message):
 
     await message.answer(f"✅ Видано {amount} NC користувачу {user_id}.")
 
-
 @router.message(Command("logs"))
 async def logs_cmd(message: Message):
     if not is_admin(message.from_user.id):
@@ -169,7 +160,6 @@ async def logs_cmd(message: Message):
 
     await message.answer(text)
 
-
 @router.message(Command("topdonate"))
 async def topdonate_cmd(message: Message):
     rows = get_top_donates()
@@ -186,7 +176,6 @@ async def topdonate_cmd(message: Message):
         text += f"{i}. {name} — {total}⭐\n"
 
     await message.answer(text)
-
 
 @router.message(Command("uah"))
 async def uah_cmd(message: Message):
@@ -220,14 +209,13 @@ async def uah_cmd(message: Message):
         "160 грн → 32000 NC\n\n"
         "🎁 Telegram Premium:\n"
         "3 місяці → 812 грн за домовленістю\n"
-        "6 місяців →  1255 грн за домовленістю\n\n"
+        "6 місяців → 1255 грн за домовленістю\n\n"
         "1️⃣ Натисни кнопку оплати\n"
         "2️⃣ Оплати потрібну суму\n"
         "3️⃣ Натисни «✅ Я оплатив»\n\n"
         "⚠️ Після перевірки адмін видасть NC або Premium вручну.",
         reply_markup=kb.as_markup()
     )
-
 
 @router.callback_query(F.data == "uah_paid")
 async def uah_paid_callback(callback: CallbackQuery):
@@ -249,12 +237,11 @@ async def uah_paid_callback(callback: CallbackQuery):
                 f"🆔 ID: {user.id}\n\n"
                 "Перевір Monobank банку:\n"
                 "https://send.monobank.ua/jar/9mkvsU4izA\n\n"
-                "Після перевірки: \n"
+                "Після перевірки:\n"
                 f"• /give {user.id} сума\n"
-                "• aбо видати Premium",
+                "• або видати Premium",
                 parse_mode="HTML"
             )
-
         except Exception:
             pass
 
@@ -264,3 +251,11 @@ async def uah_paid_callback(callback: CallbackQuery):
         "✅ Заявку відправлено адміну.\n\n"
         "Після перевірки оплати тобі видадуть NC."
     )
+
+@router.message(F.text.lower() == "бот")
+async def bot_ping_text(message: Message):
+    await message.answer("✅ Я працюю!")
+
+@router.message(F.text.lower() == "бонус")
+async def bonus_text(message: Message):
+    await daily_cmd(message)
