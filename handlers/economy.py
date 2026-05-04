@@ -112,18 +112,18 @@ async def case_cmd(message: Message):
 
     msg = await message.answer("📦 Відкриваємо кейс...")
 
-   frames = [
+frames = [
     "📦 ░░░░░░",
     "📦 ███░░░",
     "📦 ██████",
 ]
 
-    for frame in frames:
-        await asyncio.sleep(0.5)
-        try:
-            await msg.edit_text(frame)
-        except Exception:
-            pass
+for frame in frames:
+    await asyncio.sleep(0.5)
+    try:
+        await msg.edit_text(frame)
+    except:
+        pass
 
     reward = random.choices(
         population=[
