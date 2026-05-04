@@ -112,18 +112,14 @@ async def case_cmd(message: Message):
 
     msg = await message.answer("📦 Відкриваємо кейс...")
 
-    frames = [
-        "📦 ░░░░░░░░░░ 0%",
-        "📦 ██░░░░░░░░ 20%",
-        "📦 ████░░░░░░ 40%",
-        "📦 ██████░░░░ 60%",
-        "📦 ████████░░ 80%",
-        "📦 ██████████ 100%",
-        "🎁 ВІДКРИТО!"
-    ]
+   frames = [
+    "📦 ░░░░░░",
+    "📦 ███░░░",
+    "📦 ██████",
+]
 
     for frame in frames:
-        await asyncio.sleep(0.3)
+        await asyncio.sleep(0.5)
         try:
             await msg.edit_text(frame)
         except Exception:

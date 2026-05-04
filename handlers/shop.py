@@ -226,13 +226,10 @@ async def buy_item(callback: CallbackQuery, state: FSMContext):
             "🎰 | 🍒 💎 🔥 |",
             "🎰 | 💎 🔥 🍒 |",
             "🎰 | 🔥 🍒 💎 |",
-            "🎰 | ⚡ 👑 💀 |",
-            "🎰 | 💰 💎 🔥 |",
-            "🎰 | 🔥 💰 👑 |",
         ]
 
         for frame in frames:
-            await asyncio.sleep(0.25)
+            await asyncio.sleep(0.5)
             try:
                 await msg.edit_text(frame)
             except Exception:
