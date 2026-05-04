@@ -93,7 +93,7 @@ async def top_cmd(message: Message):
 
     if not rows:
         await message.answer("🏆 Топ поки порожній.")
-        return
+        returnЫ
 
     text = "🏆 Топ Nyx Coin:\n\n"
 
@@ -208,8 +208,8 @@ async def uah_cmd(message: Message):
         "90 грн → 14000 NC\n"
         "160 грн → 32000 NC\n\n"
         "🎁 Telegram Premium:\n"
-        "3 місяці → 812 грн за домовленістю\n"
-        "6 місяців → 1255 грн за домовленістю\n\n"
+        "3 місяці → 799 грн за домовленістю\n"
+        "6 місяців → 1199 грн за домовленістю\n\n"
         "1️⃣ Натисни кнопку оплати\n"
         "2️⃣ Оплати потрібну суму\n"
         "3️⃣ Натисни «✅ Я оплатив»\n\n"
