@@ -94,11 +94,7 @@ def category_kb(category):
 
 @router.message(Command("shop"))
 async def shop_cmd(message: Message):
-    register_user(
-        message.from_user.id,
-        message.from_user.username,
-        message.from_user.full_name
-    )
+    register_user(message.from_user.id, message.from_user.username, message.from_user.full_name)
 
     await message.answer(
         f"🛒 Магазин Nyx Coin\n\n"
@@ -209,71 +205,71 @@ async def buy_item(callback: CallbackQuery, state: FSMContext):
         )
         asyncio.create_task(auto_delete(msg, 15))
 
-elif item_type == "roulette":
-    now = int(time.time())
-    last_roulette = get_last_roulette_time(user_id)
+    elif item_type == "roulette":
+        now = int(time.time())
+        last_roulette = get_last_roulette_time(user_id)
 
-    if last_roulette and now - int(last_roulette) < ROULETTE_COOLDOWN:
-        add_balance(user_id, price)
-        await callback.answer("⏳ Рулетку можна крутити раз на 60 секунд.", show_alert=True)
-        return
+        if last_roulette and now - int(last_roulette) < ROULETTE_COOLDOWN:
+            add_balance(user_id, price)
+            await callback.answer("⏳ Рулетку можна крутити раз на 60 секунд.", show_alert=True)
+            return
 
-    set_last_roulette_time(user_id)
+        set_last_roulette_time(user_id)
 
-    msg = await callback.message.answer("🎰 Запускаємо рулетку...")
+        msg = await callback.message.answer("🎰 Запускаємо рулетку...")
 
-    frames = [
-        "🎰 | 🍒 💎 🔥 |",
-        "🎰 | 💎 🔥 🍒 |",
-        "🎰 | 🔥 🍒 💎 |",
-    ]
+        frames = [
+            "🎰 | 🍒 💎 🔥 |",
+            "🎰 | 💎 🔥 🍒 |",
+            "🎰 | 🔥 🍒 💎 |",
+        ]
 
-    for frame in frames:
-        await asyncio.sleep(0.5)
+        for frame in frames:
+            await asyncio.sleep(0.5)
+            try:
+                await msg.edit_text(frame)
+            except Exception:
+                pass
+
+        reward = random.choices(
+            population=[300, 500, 700, 1200, 2000, 4000],
+            weights=[35, 25, 20, 12, 6, 2],
+            k=1
+        )[0]
+
+        add_balance(user_id, reward)
+        add_log(user_id, username, "roulette_reward", reward, "roulette")
+
+        if reward >= 4000:
+            try:
+                await msg.edit_text("💥 JACKPOT 💥")
+                await asyncio.sleep(0.6)
+            except Exception:
+                pass
+
+            text = (
+                f"💥 ДЖЕКПОТ РУЛЕТКИ!\n\n"
+                f"💰 Випало: {reward} NC"
+            )
+
+        elif reward >= 2000:
+            text = (
+                f"🔥 Великий виграш!\n\n"
+                f"🎰 Випало: {reward} NC"
+            )
+
+        else:
+            text = (
+                f"🎰 Рулетка завершена!\n\n"
+                f"💰 Випало: {reward} NC"
+            )
+
         try:
-            await msg.edit_text(frame)
+            await msg.edit_text(text)
         except Exception:
             pass
 
-    reward = random.choices(
-        population=[300, 500, 700, 1200, 2000, 4000],
-        weights=[35, 25, 20, 12, 6, 2],
-        k=1
-    )[0]
-
-    add_balance(user_id, reward)
-    add_log(user_id, username, "roulette_reward", reward, "roulette")
-
-    if reward >= 4000:
-        try:
-            await msg.edit_text("💥 JACKPOT 💥")
-            await asyncio.sleep(0.6)
-        except Exception:
-            pass
-
-        text = (
-            f"💥 ДЖЕКПОТ РУЛЕТКИ!\n\n"
-            f"💰 Випало: {reward} NC"
-        )
-
-    elif reward >= 2000:
-        text = (
-            f"🔥 Великий виграш!\n\n"
-            f"🎰 Випало: {reward} NC"
-        )
-
-    else:
-        text = (
-            f"🎰 Рулетка завершена!\n\n"
-            f"💰 Випало: {reward} NC"
-        )
-
-    try:
-        await msg.edit_text(text)
-    except Exception:
-        pass
-
-    asyncio.create_task(auto_delete(msg, 15))
+        asyncio.create_task(auto_delete(msg, 15))
 
     elif item_type == "ad":
         duration = item[3]
