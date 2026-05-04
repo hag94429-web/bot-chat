@@ -26,11 +26,10 @@ router = Router()
 PAY_MIN = 50
 PAY_COOLDOWN = 10
 
-CASE_PRICE = 1000
+CASE_PRICE = 600
 CASE_COOLDOWN = 20
 
 
-# 💸 Переказ
 @router.message(Command("pay"))
 async def pay_cmd(message: Message):
     sender_id = message.from_user.id
@@ -86,7 +85,6 @@ async def pay_cmd(message: Message):
     await message.answer(f"✅ Переказано {amount} NC користувачу {receiver_id}.")
 
 
-# 🎁 Кейс
 @router.message(Command("case"))
 async def case_cmd(message: Message):
     user_id = message.from_user.id
@@ -166,8 +164,6 @@ async def case_cmd(message: Message):
 
     asyncio.create_task(auto_delete(msg, 20))
 
-
-# 🔥 ТРИГЕР "кейс"
 @router.message(F.text.lower() == "кейс")
 async def case_text(message: Message):
     await case_cmd(message)
