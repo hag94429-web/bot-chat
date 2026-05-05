@@ -27,8 +27,8 @@ from utils import auto_delete
 
 router = Router()
 
-BONUS_COOLDOWN = 60
-ROULETTE_COOLDOWN = 60
+BONUS_COOLDOWN = 20
+ROULETTE_COOLDOWN = 20
 
 
 class AdState(StatesGroup):
