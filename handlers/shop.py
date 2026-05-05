@@ -197,7 +197,7 @@ async def buy_item(callback: CallbackQuery, state: FSMContext):
 
         if last_bonus and now - int(last_bonus) < BONUS_COOLDOWN:
             add_balance(user_id, price)
-            await callback.answer("⏳ Міні-бонус можна раз на 60 секунд.", show_alert=True)
+            await callback.answer("⏳ Міні-бонус можна раз на 20 секунд.", show_alert=True)
             return
 
         set_last_bonus_time(user_id)
@@ -219,7 +219,7 @@ async def buy_item(callback: CallbackQuery, state: FSMContext):
 
         if last_roulette and now - int(last_roulette) < ROULETTE_COOLDOWN:
             add_balance(user_id, price)
-            await callback.answer("⏳ Рулетку можна крутити раз на 60 секунд.", show_alert=True)
+            await callback.answer("⏳ Рулетку можна крутити раз на 20 секунд.", show_alert=True)
             return
 
         set_last_roulette_time(user_id)
