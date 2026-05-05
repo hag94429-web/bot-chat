@@ -129,7 +129,6 @@ async def shop_category(callback: CallbackQuery):
     )
     await callback.answer()
 
-
 @router.callback_query(F.data.startswith("buy:"))
 async def buy_item(callback: CallbackQuery, state: FSMContext):
     user_id = callback.from_user.id
@@ -137,6 +136,9 @@ async def buy_item(callback: CallbackQuery, state: FSMContext):
     full_name = callback.from_user.full_name
 
     register_user(user_id, username, full_name)
+
+    chat_id = callback.message.chat.id
+    chat_title = callback.message.chat.title or "Приват"
 
     item_key = callback.data.split(":")[1]
 
@@ -156,7 +158,13 @@ async def buy_item(callback: CallbackQuery, state: FSMContext):
         )
         return
 
-    add_log(user_id, username, "buy", price, name)
+    add_log(
+        user_id,
+        username,
+        "buy",
+        price,
+        f"{name} | чат: {chat_title} ({chat_id})"
+    )
 
     if item_type == "emoji":
         emoji = random.choice(["🔥", "💎", "😈", "👑", "⚡", "🌙", "💀"])
@@ -310,7 +318,9 @@ async def buy_item(callback: CallbackQuery, state: FSMContext):
                     admin_id,
                     f"🛒 Нова покупка!\n\n"
                     f"👤 @{username if username else 'без username'}\n"
-                    f"🆔 ID: {user_id}\n"
+                    f"🆔 ID: {user_id}\n\n"
+                    f"💬 Чат: {chat_title}\n"
+                    f"🆔 Chat ID: {chat_id}\n\n"
                     f"📦 Товар: {name}\n"
                     f"💰 Ціна: {price} NC"
                 )
@@ -318,7 +328,6 @@ async def buy_item(callback: CallbackQuery, state: FSMContext):
                 pass
 
     await callback.answer("Готово!")
-
 
 @router.message(AdState.waiting_text)
 async def receive_ad_text(message: Message, state: FSMContext):
