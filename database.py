@@ -1,13 +1,10 @@
 import sqlite3
 import time
-from datetime import date
 
 DB_NAME = "nyx.db"
 
-
 def connect():
     return sqlite3.connect(DB_NAME)
-
 
 def init_db():
     conn = connect()
@@ -52,11 +49,20 @@ def init_db():
     )
     """)
 
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS duel_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        challenger_id INTEGER,
+        opponent_id INTEGER,
+        winner_id INTEGER,
+        bet INTEGER,
+        fee INTEGER,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+
     conn.commit()
     conn.close()
-
-
-# --- USER ---
 
 def register_user(user_id, username=None, full_name=None):
     conn = connect()
@@ -76,33 +82,22 @@ def register_user(user_id, username=None, full_name=None):
     conn.commit()
     conn.close()
 
-
 def get_balance(user_id):
     conn = connect()
     cur = conn.cursor()
-
     cur.execute("SELECT balance FROM users WHERE user_id = ?", (user_id,))
     row = cur.fetchone()
-
     conn.close()
     return row[0] if row else 0
-
 
 def add_balance(user_id, amount):
     register_user(user_id)
 
     conn = connect()
     cur = conn.cursor()
-
-    cur.execute("""
-    UPDATE users
-    SET balance = balance + ?
-    WHERE user_id = ?
-    """, (amount, user_id))
-
+    cur.execute("UPDATE users SET balance = balance + ? WHERE user_id = ?", (amount, user_id))
     conn.commit()
     conn.close()
-
 
 def spend_balance(user_id, amount):
     if get_balance(user_id) < amount:
@@ -116,10 +111,8 @@ def spend_balance(user_id, amount):
 def can_daily(user_id):
     conn = connect()
     cur = conn.cursor()
-
     cur.execute("SELECT last_daily FROM users WHERE user_id = ?", (user_id,))
     row = cur.fetchone()
-
     conn.close()
 
     if not row or not row[0]:
@@ -127,23 +120,35 @@ def can_daily(user_id):
 
     try:
         last = int(row[0])
-    except:
+    except Exception:
         return True
 
-    return time.time() - last >= 18000  
+    return time.time() - last >= 18000
 
 def set_daily(user_id):
     conn = connect()
     cur = conn.cursor()
-
-    cur.execute("""
-    UPDATE users
-    SET last_daily = ?
-    WHERE user_id = ?
-    """, (int(time.time()), user_id))
-
+    cur.execute("UPDATE users SET last_daily = ? WHERE user_id = ?", (int(time.time()), user_id))
     conn.commit()
     conn.close()
+
+def get_daily_remaining(user_id):
+    conn = connect()
+    cur = conn.cursor()
+    cur.execute("SELECT last_daily FROM users WHERE user_id = ?", (user_id,))
+    row = cur.fetchone()
+    conn.close()
+
+    if not row or not row[0]:
+        return 0
+
+    try:
+        last = int(row[0])
+    except Exception:
+        return 0
+
+    remaining = 18000 - (time.time() - last)
+    return int(remaining) if remaining > 0 else 0
 
 # --- TOP ---
 
@@ -162,7 +167,6 @@ def get_top(limit=10):
     conn.close()
     return rows
 
-
 # --- EMOJI ---
 
 def set_emoji_status(user_id, emoji):
@@ -170,7 +174,6 @@ def set_emoji_status(user_id, emoji):
 
     conn = connect()
     cur = conn.cursor()
-
     cur.execute("""
     UPDATE users
     SET emoji_status = ?, emoji_until = ?
@@ -179,7 +182,6 @@ def set_emoji_status(user_id, emoji):
 
     conn.commit()
     conn.close()
-
 
 def get_active_emoji(user_id):
     conn = connect()
@@ -207,7 +209,6 @@ def get_active_emoji(user_id):
 
     return emoji
 
-
 # --- VIP ---
 
 def set_basic_role(user_id, days=1):
@@ -215,7 +216,6 @@ def set_basic_role(user_id, days=1):
 
     conn = connect()
     cur = conn.cursor()
-
     cur.execute("""
     UPDATE users
     SET role = ?, role_until = ?
@@ -224,7 +224,6 @@ def set_basic_role(user_id, days=1):
 
     conn.commit()
     conn.close()
-
 
 def get_active_role(user_id):
     conn = connect()
@@ -255,7 +254,7 @@ def get_active_role(user_id):
 
 # --- ACTIVITY ---
 
-def update_last_msg(user_id, text):
+def update_last_msg(user_id, timestamp, text):
     conn = connect()
     cur = conn.cursor()
 
@@ -263,11 +262,10 @@ def update_last_msg(user_id, text):
     UPDATE users
     SET last_msg_time = ?, last_msg_text = ?
     WHERE user_id = ?
-    """, (int(time.time()), text, user_id))
+    """, (timestamp, text, user_id))
 
     conn.commit()
     conn.close()
-
 
 def get_last_msg(user_id):
     conn = connect()
@@ -281,40 +279,30 @@ def get_last_msg(user_id):
 
     row = cur.fetchone()
     conn.close()
-
-    return row if row else (0, "")
-
+    return row if row else (None, None)
 
 # --- TIME FIELDS ---
 
 def get_time(user_id, field):
     conn = connect()
     cur = conn.cursor()
-
     cur.execute(f"SELECT {field} FROM users WHERE user_id = ?", (user_id,))
     row = cur.fetchone()
-
     conn.close()
     return row[0] if row and row[0] else 0
-
 
 def set_time(user_id, field):
     conn = connect()
     cur = conn.cursor()
-
     cur.execute(f"UPDATE users SET {field} = ? WHERE user_id = ?", (int(time.time()), user_id))
-
     conn.commit()
     conn.close()
-
 
 def get_last_bonus_time(user_id):
     return get_time(user_id, "last_bonus_time")
 
-
 def set_last_bonus_time(user_id):
     set_time(user_id, "last_bonus_time")
-
 
 def get_last_roulette_time(user_id):
     return get_time(user_id, "last_roulette_time")
@@ -338,7 +326,6 @@ def get_last_case_time(user_id):
 
 def set_last_case_time(user_id):
     set_time(user_id, "last_case_time")
-
 
 # --- LOGS ---
 
@@ -387,3 +374,17 @@ def get_top_donates(limit=10):
     rows = cur.fetchall()
     conn.close()
     return rows
+
+# --- DUELS ---
+
+def add_duel_log(challenger_id, opponent_id, winner_id, bet, fee):
+    conn = connect()
+    cur = conn.cursor()
+
+    cur.execute("""
+    INSERT INTO duel_logs (challenger_id, opponent_id, winner_id, bet, fee)
+    VALUES (?, ?, ?, ?, ?)
+    """, (challenger_id, opponent_id, winner_id, bet, fee))
+
+    conn.commit()
+    conn.close()
