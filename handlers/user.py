@@ -36,6 +36,7 @@ async def start_cmd(message: Message):
     await message.answer(
         "🌙 Nyx Coin бот активний!\n\n"
         "/profile — профіль\n"
+        "/duel-дуель⚔️\n"
         "/balance — баланс\n"
         "/daily — щоденний бонус\n"
         "/top — топ по NC\n"
