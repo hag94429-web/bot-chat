@@ -16,6 +16,8 @@ from database import (
     get_duel_logs
 )
 
+from utils import auto_delete
+
 router = Router()
 
 active_duels = {}
@@ -42,7 +44,17 @@ def duel_keyboard(duel_id):
     return kb.as_markup()
 
 
-async def auto_cleanup_duel(duel_id, message: Message):
+def rematch_keyboard(challenger_id, opponent_id, bet):
+    kb = InlineKeyboardBuilder()
+    kb.button(
+        text="🔁 Реванш",
+        callback_data=f"duel_rematch:{challenger_id}:{opponent_id}:{bet}"
+    )
+    kb.adjust(1)
+    return kb.as_markup()
+
+
+async def auto_cleanup_duel(duel_id, message):
     await asyncio.sleep(DUEL_TIMEOUT)
 
     if duel_id in active_duels:
@@ -55,6 +67,30 @@ async def auto_cleanup_duel(duel_id, message: Message):
             )
         except Exception:
             pass
+
+
+async def start_duel_message(message, challenger_id, challenger_name, opponent_id, bet):
+    now = int(time.time())
+    duel_id = f"{challenger_id}_{opponent_id}_{now}"
+
+    active_duels[duel_id] = {
+        "challenger_id": challenger_id,
+        "challenger_name": challenger_name,
+        "opponent_id": opponent_id,
+        "bet": bet,
+        "created_at": now
+    }
+
+    duel_msg = await message.answer(
+        f"⚔️ Дуель!\n\n"
+        f"👤 Викликає: {challenger_name}\n"
+        f"🎯 Суперник ID: {opponent_id}\n"
+        f"💰 Ставка: {bet} NC\n\n"
+        f"⏳ Час на прийняття: {DUEL_TIMEOUT} сек.",
+        reply_markup=duel_keyboard(duel_id)
+    )
+
+    asyncio.create_task(auto_cleanup_duel(duel_id, duel_msg))
 
 
 @router.message(Command("duel"))
@@ -101,30 +137,17 @@ async def duel_cmd(message: Message):
         await message.answer("❌ У суперника недостатньо NC або він ще не користувався ботом.")
         return
 
-    duel_id = f"{user_id}_{opponent_id}_{now}"
+    duel_cooldowns[user_id] = now
 
     challenger_name = user_name(user_id, username, full_name)
 
-    active_duels[duel_id] = {
-        "challenger_id": user_id,
-        "challenger_name": challenger_name,
-        "opponent_id": opponent_id,
-        "bet": bet,
-        "created_at": now
-    }
-
-    duel_cooldowns[user_id] = now
-
-    duel_msg = await message.answer(
-        f"⚔️ Дуель!\n\n"
-        f"👤 Викликає: {challenger_name}\n"
-        f"🎯 Суперник ID: {opponent_id}\n"
-        f"💰 Ставка: {bet} NC\n\n"
-        f"⏳ Час на прийняття: {DUEL_TIMEOUT} сек.",
-        reply_markup=duel_keyboard(duel_id)
+    await start_duel_message(
+        message,
+        user_id,
+        challenger_name,
+        opponent_id,
+        bet
     )
-
-    asyncio.create_task(auto_cleanup_duel(duel_id, duel_msg))
 
 
 @router.callback_query(F.data.startswith("duel_accept:"))
@@ -181,11 +204,7 @@ async def duel_accept(callback: CallbackQuery):
             pass
 
     winner_id = random.choice([challenger_id, opponent_id])
-
-    if winner_id == challenger_id:
-        winner_name = challenger_name
-    else:
-        winner_name = opponent_name
+    winner_name = challenger_name if winner_id == challenger_id else opponent_name
 
     bank = bet * 2
     fee = bank * DUEL_FEE_PERCENT // 100
@@ -201,8 +220,11 @@ async def duel_accept(callback: CallbackQuery):
         f"⚔️ {challenger_name} vs {opponent_name}\n\n"
         f"👑 Переможець: {winner_name}\n"
         f"💰 Виграш: {prize} NC\n"
-        f"🪙 Комісія бота: {fee} NC"
+        f"🪙 Комісія бота: {fee} NC",
+        reply_markup=rematch_keyboard(challenger_id, opponent_id, bet)
     )
+
+    asyncio.create_task(auto_delete(msg, 45))
 
     await callback.answer()
 
@@ -225,6 +247,80 @@ async def duel_decline(callback: CallbackQuery):
 
     await callback.message.edit_text("❌ Дуель відхилено.")
     await callback.answer()
+
+
+@router.callback_query(F.data.startswith("duel_rematch:"))
+async def duel_rematch(callback: CallbackQuery):
+    parts = callback.data.split(":")
+
+    old_challenger_id = int(parts[1])
+    old_opponent_id = int(parts[2])
+    bet = int(parts[3])
+
+    user_id = callback.from_user.id
+
+    if user_id not in [old_challenger_id, old_opponent_id]:
+        await callback.answer("❌ Реванш можуть створити тільки учасники дуелі.", show_alert=True)
+        return
+
+    if user_id == old_challenger_id:
+        challenger_id = old_challenger_id
+        opponent_id = old_opponent_id
+    else:
+        challenger_id = old_opponent_id
+        opponent_id = old_challenger_id
+
+    register_user(
+        callback.from_user.id,
+        callback.from_user.username,
+        callback.from_user.full_name
+    )
+
+    challenger_name = user_name(
+        callback.from_user.id,
+        callback.from_user.username,
+        callback.from_user.full_name
+    )
+
+    now = int(time.time())
+    last = duel_cooldowns.get(challenger_id, 0)
+
+    if now - last < DUEL_COOLDOWN:
+        await callback.answer("⏳ Реванш можна створювати раз на 30 секунд.", show_alert=True)
+        return
+
+    if get_balance(challenger_id) < bet:
+        await callback.answer("❌ У тебе недостатньо NC для реваншу.", show_alert=True)
+        return
+
+    if get_balance(opponent_id) < bet:
+        await callback.answer("❌ У суперника недостатньо NC для реваншу.", show_alert=True)
+        return
+
+    duel_cooldowns[challenger_id] = now
+
+    duel_id = f"{challenger_id}_{opponent_id}_{now}"
+
+    active_duels[duel_id] = {
+        "challenger_id": challenger_id,
+        "challenger_name": challenger_name,
+        "opponent_id": opponent_id,
+        "bet": bet,
+        "created_at": now
+    }
+
+    duel_msg = await callback.message.answer(
+        f"🔁 Реванш!\n\n"
+        f"👤 Викликає: {challenger_name}\n"
+        f"🎯 Суперник ID: {opponent_id}\n"
+        f"💰 Ставка: {bet} NC\n\n"
+        f"⏳ Час на прийняття: {DUEL_TIMEOUT} сек.",
+        reply_markup=duel_keyboard(duel_id)
+    )
+
+    asyncio.create_task(auto_cleanup_duel(duel_id, duel_msg))
+
+    await callback.answer("🔁 Реванш створено!")
 
 
 @router.message(Command("duellogs"))
