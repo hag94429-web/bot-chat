@@ -10,9 +10,9 @@ router = Router()
 
 
 STAR_PACKS = {
-    "s5": {"stars": 5, "coins": 700},
-    "s10": {"stars": 10, "coins": 1200},
-    "s25": {"stars": 25, "coins": 3000},
+    "s5": {"stars": 10, "coins": 700},
+    "s10": {"stars": 20, "coins": 1200},
+    "s25": {"stars": 30, "coins": 3000},
     "s50": {"stars": 50, "coins": 6500},
     "s100": {"stars": 100, "coins": 14000},
     "s200": {"stars": 200, "coins": 32000},
@@ -25,9 +25,9 @@ STAR_PACKS = {
 def stars_keyboard():
     kb = InlineKeyboardBuilder()
 
-    kb.button(text="⭐ 5 → 700 NC", callback_data="stars:s5")
-    kb.button(text="⭐ 10 → 1200 NC", callback_data="stars:s10")
-    kb.button(text="⭐ 25 → 3000 NC", callback_data="stars:s25")
+    kb.button(text="⭐ 10 → 700 NC", callback_data="stars:s5")
+    kb.button(text="⭐ 20 → 1200 NC", callback_data="stars:s10")
+    kb.button(text="⭐ 30 → 3000 NC", callback_data="stars:s25")
     kb.button(text="⭐ 50 → 6500 NC", callback_data="stars:s50")
     kb.button(text="🔥 ⭐ 100 → 14000 NC", callback_data="stars:s100")
     kb.button(text="💎 ⭐ 200 → 32000 NC", callback_data="stars:s200")
@@ -46,9 +46,9 @@ async def stars_cmd(message: Message):
     await message.answer(
         "⭐ Купівля за Telegram Stars\n\n"
         "💰 Nyx Coin:\n"
-        "5⭐ = 700 NC\n"
-        "10⭐ = 1200 NC\n"
-        "25⭐ = 3000 NC\n"
+        "10⭐ = 700 NC\n"
+        "20⭐ = 1200 NC\n"
+        "30⭐ = 3000 NC\n"
         "50⭐ = 6500 NC\n"
         "100⭐ = 14000 NC 🔥\n"
         "200⭐ = 32000 NC 💎\n\n"
