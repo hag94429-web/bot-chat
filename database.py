@@ -51,15 +51,22 @@ def init_db():
 
     cur.execute("""
     CREATE TABLE IF NOT EXISTS duel_logs (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        challenger_id INTEGER,
-        opponent_id INTEGER,
-        winner_id INTEGER,
-        bet INTEGER,
-        fee INTEGER,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP
-    )
-    """)
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+    challenger_id INTEGER,
+    opponent_id INTEGER,
+
+    winner_id INTEGER,
+    winner_name TEXT,
+
+    bet INTEGER,
+    fee INTEGER,
+
+    chat_id INTEGER,
+
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+)
+""")
 
     conn.commit()
     conn.close()
@@ -388,3 +395,18 @@ def add_duel_log(challenger_id, opponent_id, winner_id, bet, fee):
 
     conn.commit()
     conn.close()
+
+def get_duel_logs(limit=10):
+    conn = connect()
+    cur = conn.cursor()
+
+    cur.execute("""
+    SELECT challenger_id, opponent_id, winner_id, bet, fee, created_at
+    FROM duel_logs
+    ORDER BY id DESC
+    LIMIT ?
+    """, (limit,))
+
+    rows = cur.fetchall()
+    conn.close()
+    return rows
