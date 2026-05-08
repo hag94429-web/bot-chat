@@ -13,7 +13,10 @@ from database import (
     add_balance,
     spend_balance,
     add_duel_log,
-    get_duel_logs
+    get_duel_logs,
+    add_duel_bet,
+    get_duel_bets,
+    delete_duel_bets
 )
 
 from utils import auto_delete
@@ -26,6 +29,7 @@ duel_cooldowns = {}
 DUEL_COOLDOWN = 30
 DUEL_TIMEOUT = 60
 DUEL_FEE_PERCENT = 10
+BET_FEE_PERCENT = 10
 
 
 def user_name(user_id, username=None, full_name=None):
@@ -59,11 +63,13 @@ async def auto_cleanup_duel(duel_id, message):
 
     if duel_id in active_duels:
         active_duels.pop(duel_id, None)
+        delete_duel_bets(duel_id)
 
         try:
             await message.edit_text(
                 "❌ Дуель скасована.\n\n"
-                "⏳ Час на прийняття вийшов."
+                "⏳ Час на прийняття вийшов.\n"
+                "💸 Ставки повернені не будуть, якщо ти не додав повернення вручну."
             )
         except Exception:
             pass
@@ -74,6 +80,7 @@ async def start_duel_message(message, challenger_id, challenger_name, opponent_i
     duel_id = f"{challenger_id}_{opponent_id}_{now}"
 
     active_duels[duel_id] = {
+        "duel_id": duel_id,
         "challenger_id": challenger_id,
         "challenger_name": challenger_name,
         "opponent_id": opponent_id,
@@ -83,11 +90,17 @@ async def start_duel_message(message, challenger_id, challenger_name, opponent_i
 
     duel_msg = await message.answer(
         f"⚔️ Дуель!\n\n"
+        f"🆔 Duel ID:\n"
+        f"`{duel_id}`\n\n"
         f"👤 Викликає: {challenger_name}\n"
         f"🎯 Суперник ID: {opponent_id}\n"
-        f"💰 Ставка: {bet} NC\n\n"
+        f"💰 Ставка дуелі: {bet} NC\n\n"
+        f"💸 Ставки на переможця:\n"
+        f"/duelbet {duel_id} {challenger_id} 100\n"
+        f"/duelbet {duel_id} {opponent_id} 100\n\n"
         f"⏳ Час на прийняття: {DUEL_TIMEOUT} сек.",
-        reply_markup=duel_keyboard(duel_id)
+        reply_markup=duel_keyboard(duel_id),
+        parse_mode="Markdown"
     )
 
     asyncio.create_task(auto_cleanup_duel(duel_id, duel_msg))
@@ -150,6 +163,60 @@ async def duel_cmd(message: Message):
     )
 
 
+@router.message(Command("duelbet"))
+async def duel_bet_cmd(message: Message):
+    user_id = message.from_user.id
+    username = message.from_user.username
+
+    register_user(user_id, username, message.from_user.full_name)
+
+    args = message.text.split()
+
+    if len(args) != 4:
+        await message.answer("❌ Використання: /duelbet duel_id target_id сума")
+        return
+
+    duel_id = args[1]
+
+    try:
+        target_id = int(args[2])
+        amount = int(args[3])
+    except ValueError:
+        await message.answer("❌ target_id і сума мають бути числами.")
+        return
+
+    if duel_id not in active_duels:
+        await message.answer("❌ Такої активної дуелі нема.")
+        return
+
+    duel = active_duels[duel_id]
+
+    if target_id not in [duel["challenger_id"], duel["opponent_id"]]:
+        await message.answer("❌ Ставити можна тільки на учасників цієї дуелі.")
+        return
+
+    if user_id in [duel["challenger_id"], duel["opponent_id"]]:
+        await message.answer("❌ Учасники не можуть ставити на свою дуель.")
+        return
+
+    if amount < 50:
+        await message.answer("❌ Мінімальна ставка: 50 NC.")
+        return
+
+    if not spend_balance(user_id, amount):
+        await message.answer("❌ Недостатньо NC.")
+        return
+
+    add_duel_bet(duel_id, user_id, username, target_id, amount)
+
+    await message.answer(
+        f"✅ Ставку прийнято!\n\n"
+        f"🆔 Duel ID: {duel_id}\n"
+        f"🎯 Ставка на: ID:{target_id}\n"
+        f"💰 Сума: {amount} NC"
+    )
+
+
 @router.callback_query(F.data.startswith("duel_accept:"))
 async def duel_accept(callback: CallbackQuery):
     duel_id = callback.data.split(":")[1]
@@ -179,6 +246,7 @@ async def duel_accept(callback: CallbackQuery):
     if get_balance(challenger_id) < bet:
         await callback.message.edit_text("❌ У того, хто викликав, вже недостатньо NC.")
         active_duels.pop(duel_id, None)
+        delete_duel_bets(duel_id)
         return
 
     if get_balance(opponent_id) < bet:
@@ -213,6 +281,33 @@ async def duel_accept(callback: CallbackQuery):
     add_balance(winner_id, prize)
     add_duel_log(challenger_id, opponent_id, winner_id, bet, fee)
 
+    bets = get_duel_bets(duel_id)
+
+    total_bets_pool = sum(row[3] for row in bets)
+    winner_bets = [row for row in bets if row[2] == winner_id]
+    winner_bets_sum = sum(row[3] for row in winner_bets)
+
+    bet_text = ""
+
+    if bets and winner_bets_sum > 0:
+        bet_fee = total_bets_pool * BET_FEE_PERCENT // 100
+        payout_pool = total_bets_pool - bet_fee
+
+        bet_text += "\n\n💸 Ставки:"
+        bet_text += f"\n🏦 Банк ставок: {total_bets_pool} NC"
+        bet_text += f"\n🪙 Комісія ставок: {bet_fee} NC"
+
+        for bet_user_id, bet_username, target_id, amount in winner_bets:
+            payout = payout_pool * amount // winner_bets_sum
+            add_balance(bet_user_id, payout)
+
+            bet_name = f"@{bet_username}" if bet_username else f"ID:{bet_user_id}"
+            bet_text += f"\n✅ {bet_name} виграв {payout} NC"
+
+    elif bets:
+        bet_text += "\n\n💸 Ставки: ніхто не вгадав, банк згорів."
+
+    delete_duel_bets(duel_id)
     active_duels.pop(duel_id, None)
 
     await msg.edit_text(
@@ -220,7 +315,8 @@ async def duel_accept(callback: CallbackQuery):
         f"⚔️ {challenger_name} vs {opponent_name}\n\n"
         f"👑 Переможець: {winner_name}\n"
         f"💰 Виграш: {prize} NC\n"
-        f"🪙 Комісія бота: {fee} NC",
+        f"🪙 Комісія бота: {fee} NC"
+        f"{bet_text}",
         reply_markup=rematch_keyboard(challenger_id, opponent_id, bet)
     )
 
@@ -243,6 +339,7 @@ async def duel_decline(callback: CallbackQuery):
         await callback.answer("❌ Це не твоя дуель.", show_alert=True)
         return
 
+    delete_duel_bets(duel_id)
     active_duels.pop(duel_id, None)
 
     await callback.message.edit_text("❌ Дуель відхилено.")
@@ -299,26 +396,13 @@ async def duel_rematch(callback: CallbackQuery):
 
     duel_cooldowns[challenger_id] = now
 
-    duel_id = f"{challenger_id}_{opponent_id}_{now}"
-
-    active_duels[duel_id] = {
-        "challenger_id": challenger_id,
-        "challenger_name": challenger_name,
-        "opponent_id": opponent_id,
-        "bet": bet,
-        "created_at": now
-    }
-
-    duel_msg = await callback.message.answer(
-        f"🔁 Реванш!\n\n"
-        f"👤 Викликає: {challenger_name}\n"
-        f"🎯 Суперник ID: {opponent_id}\n"
-        f"💰 Ставка: {bet} NC\n\n"
-        f"⏳ Час на прийняття: {DUEL_TIMEOUT} сек.",
-        reply_markup=duel_keyboard(duel_id)
+    await start_duel_message(
+        callback.message,
+        challenger_id,
+        challenger_name,
+        opponent_id,
+        bet
     )
-
-    asyncio.create_task(auto_cleanup_duel(duel_id, duel_msg))
 
     await callback.answer("🔁 Реванш створено!")
 
