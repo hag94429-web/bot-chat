@@ -3,9 +3,16 @@ import time
 
 DB_NAME = "nyx.db"
 
+
+def connect():
+    return sqlite3.connect(DB_NAME)
+
+
 def init_db():
     conn = connect()
     cur = conn.cursor()
+
+    # --- USERS ---
 
     cur.execute("""
     CREATE TABLE IF NOT EXISTS users (
@@ -34,6 +41,8 @@ def init_db():
         except sqlite3.OperationalError:
             pass
 
+    # --- LOGS ---
+
     cur.execute("""
     CREATE TABLE IF NOT EXISTS logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -45,6 +54,8 @@ def init_db():
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
     """)
+
+    # --- DUEL LOGS ---
 
     cur.execute("""
     CREATE TABLE IF NOT EXISTS duel_logs (
@@ -58,6 +69,8 @@ def init_db():
     )
     """)
 
+    # --- DUEL BETS ---
+
     cur.execute("""
     CREATE TABLE IF NOT EXISTS duel_bets (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -69,6 +82,8 @@ def init_db():
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
     """)
+
+    # --- DUEL STATS ---
 
     cur.execute("""
     CREATE TABLE IF NOT EXISTS duel_stats (
@@ -84,22 +99,37 @@ def init_db():
     conn.close()
 
 
-# --- USER ---
+# =========================================================
+# USERS
+# =========================================================
 
 def register_user(user_id, username=None, full_name=None):
     conn = connect()
     cur = conn.cursor()
 
     cur.execute("""
-    INSERT OR IGNORE INTO users (user_id, username, full_name, balance)
+    INSERT OR IGNORE INTO users (
+        user_id,
+        username,
+        full_name,
+        balance
+    )
     VALUES (?, ?, ?, 0)
     """, (user_id, username, full_name))
 
     if username:
-        cur.execute("UPDATE users SET username = ? WHERE user_id = ?", (username, user_id))
+        cur.execute("""
+        UPDATE users
+        SET username = ?
+        WHERE user_id = ?
+        """, (username, user_id))
 
     if full_name:
-        cur.execute("UPDATE users SET full_name = ? WHERE user_id = ?", (full_name, user_id))
+        cur.execute("""
+        UPDATE users
+        SET full_name = ?
+        WHERE user_id = ?
+        """, (full_name, user_id))
 
     conn.commit()
     conn.close()
@@ -109,10 +139,16 @@ def get_balance(user_id):
     conn = connect()
     cur = conn.cursor()
 
-    cur.execute("SELECT balance FROM users WHERE user_id = ?", (user_id,))
+    cur.execute("""
+    SELECT balance
+    FROM users
+    WHERE user_id = ?
+    """, (user_id,))
+
     row = cur.fetchone()
 
     conn.close()
+
     return row[0] if row else 0
 
 
@@ -140,13 +176,20 @@ def spend_balance(user_id, amount):
     return True
 
 
-# --- DAILY ---
+# =========================================================
+# DAILY
+# =========================================================
 
 def can_daily(user_id):
     conn = connect()
     cur = conn.cursor()
 
-    cur.execute("SELECT last_daily FROM users WHERE user_id = ?", (user_id,))
+    cur.execute("""
+    SELECT last_daily
+    FROM users
+    WHERE user_id = ?
+    """, (user_id,))
+
     row = cur.fetchone()
 
     conn.close()
@@ -159,7 +202,7 @@ def can_daily(user_id):
     except Exception:
         return True
 
-    return time.time() - last >= 18000  # 5 годин
+    return time.time() - last >= 18000
 
 
 def set_daily(user_id):
@@ -180,7 +223,12 @@ def get_daily_remaining(user_id):
     conn = connect()
     cur = conn.cursor()
 
-    cur.execute("SELECT last_daily FROM users WHERE user_id = ?", (user_id,))
+    cur.execute("""
+    SELECT last_daily
+    FROM users
+    WHERE user_id = ?
+    """, (user_id,))
+
     row = cur.fetchone()
 
     conn.close()
@@ -195,13 +243,12 @@ def get_daily_remaining(user_id):
 
     remaining = 18000 - (time.time() - last)
 
-    if remaining < 0:
-        return 0
-
-    return int(remaining)
+    return int(remaining) if remaining > 0 else 0
 
 
-# --- TOP ---
+# =========================================================
+# TOP
+# =========================================================
 
 def get_top(limit=10):
     conn = connect()
@@ -215,11 +262,15 @@ def get_top(limit=10):
     """, (limit,))
 
     rows = cur.fetchall()
+
     conn.close()
+
     return rows
 
 
-# --- EMOJI ---
+# =========================================================
+# EMOJI
+# =========================================================
 
 def set_emoji_status(user_id, emoji):
     expire = int(time.time()) + 86400
@@ -248,6 +299,7 @@ def get_active_emoji(user_id):
     """, (user_id,))
 
     row = cur.fetchone()
+
     conn.close()
 
     if not row:
@@ -264,7 +316,9 @@ def get_active_emoji(user_id):
     return emoji
 
 
-# --- VIP ---
+# =========================================================
+# ROLES
+# =========================================================
 
 def set_basic_role(user_id, days=1):
     expire = int(time.time()) + days * 86400
@@ -293,6 +347,7 @@ def get_active_role(user_id):
     """, (user_id,))
 
     row = cur.fetchone()
+
     conn.close()
 
     if not row:
@@ -309,7 +364,9 @@ def get_active_role(user_id):
     return role
 
 
-# --- ACTIVITY ---
+# =========================================================
+# MESSAGE ACTIVITY
+# =========================================================
 
 def update_last_msg(user_id, timestamp, text):
     conn = connect()
@@ -336,21 +393,30 @@ def get_last_msg(user_id):
     """, (user_id,))
 
     row = cur.fetchone()
+
     conn.close()
 
     return row if row else (None, None)
 
 
-# --- TIME FIELDS ---
+# =========================================================
+# TIME HELPERS
+# =========================================================
 
 def get_time(user_id, field):
     conn = connect()
     cur = conn.cursor()
 
-    cur.execute(f"SELECT {field} FROM users WHERE user_id = ?", (user_id,))
+    cur.execute(f"""
+    SELECT {field}
+    FROM users
+    WHERE user_id = ?
+    """, (user_id,))
+
     row = cur.fetchone()
 
     conn.close()
+
     return row[0] if row and row[0] else 0
 
 
@@ -358,7 +424,11 @@ def set_time(user_id, field):
     conn = connect()
     cur = conn.cursor()
 
-    cur.execute(f"UPDATE users SET {field} = ? WHERE user_id = ?", (int(time.time()), user_id))
+    cur.execute(f"""
+    UPDATE users
+    SET {field} = ?
+    WHERE user_id = ?
+    """, (int(time.time()), user_id))
 
     conn.commit()
     conn.close()
@@ -380,14 +450,6 @@ def set_last_roulette_time(user_id):
     set_time(user_id, "last_roulette_time")
 
 
-def get_last_pay_time(user_id):
-    return get_time(user_id, "last_pay_time")
-
-
-def set_last_pay_time(user_id):
-    set_time(user_id, "last_pay_time")
-
-
 def get_last_case_time(user_id):
     return get_time(user_id, "last_case_time")
 
@@ -396,14 +458,30 @@ def set_last_case_time(user_id):
     set_time(user_id, "last_case_time")
 
 
-# --- LOGS ---
+def get_last_pay_time(user_id):
+    return get_time(user_id, "last_pay_time")
+
+
+def set_last_pay_time(user_id):
+    set_time(user_id, "last_pay_time")
+
+
+# =========================================================
+# LOGS
+# =========================================================
 
 def add_log(user_id, username, action, amount, item):
     conn = connect()
     cur = conn.cursor()
 
     cur.execute("""
-    INSERT INTO logs (user_id, username, action, amount, item)
+    INSERT INTO logs (
+        user_id,
+        username,
+        action,
+        amount,
+        item
+    )
     VALUES (?, ?, ?, ?, ?)
     """, (user_id, username, action, amount, item))
 
@@ -423,7 +501,9 @@ def get_logs(limit=15):
     """, (limit,))
 
     rows = cur.fetchall()
+
     conn.close()
+
     return rows
 
 
@@ -441,20 +521,36 @@ def get_top_donates(limit=10):
     """, (limit,))
 
     rows = cur.fetchall()
+
     conn.close()
+
     return rows
 
 
-# --- DUEL LOGS ---
+# =========================================================
+# DUEL LOGS
+# =========================================================
 
 def add_duel_log(challenger_id, opponent_id, winner_id, bet, fee):
     conn = connect()
     cur = conn.cursor()
 
     cur.execute("""
-    INSERT INTO duel_logs (challenger_id, opponent_id, winner_id, bet, fee)
+    INSERT INTO duel_logs (
+        challenger_id,
+        opponent_id,
+        winner_id,
+        bet,
+        fee
+    )
     VALUES (?, ?, ?, ?, ?)
-    """, (challenger_id, opponent_id, winner_id, bet, fee))
+    """, (
+        challenger_id,
+        opponent_id,
+        winner_id,
+        bet,
+        fee
+    ))
 
     conn.commit()
     conn.close()
@@ -465,27 +561,48 @@ def get_duel_logs(limit=10):
     cur = conn.cursor()
 
     cur.execute("""
-    SELECT challenger_id, opponent_id, winner_id, bet, fee, created_at
+    SELECT challenger_id,
+           opponent_id,
+           winner_id,
+           bet,
+           fee,
+           created_at
     FROM duel_logs
     ORDER BY id DESC
     LIMIT ?
     """, (limit,))
 
     rows = cur.fetchall()
+
     conn.close()
+
     return rows
 
 
-# --- DUEL BETS ---
+# =========================================================
+# DUEL BETS
+# =========================================================
 
 def add_duel_bet(duel_id, user_id, username, target_id, amount):
     conn = connect()
     cur = conn.cursor()
 
     cur.execute("""
-    INSERT INTO duel_bets (duel_id, user_id, username, target_id, amount)
+    INSERT INTO duel_bets (
+        duel_id,
+        user_id,
+        username,
+        target_id,
+        amount
+    )
     VALUES (?, ?, ?, ?, ?)
-    """, (duel_id, user_id, username, target_id, amount))
+    """, (
+        duel_id,
+        user_id,
+        username,
+        target_id,
+        amount
+    ))
 
     conn.commit()
     conn.close()
@@ -496,13 +613,18 @@ def get_duel_bets(duel_id):
     cur = conn.cursor()
 
     cur.execute("""
-    SELECT user_id, username, target_id, amount
+    SELECT user_id,
+           username,
+           target_id,
+           amount
     FROM duel_bets
     WHERE duel_id = ?
     """, (duel_id,))
 
     rows = cur.fetchall()
+
     conn.close()
+
     return rows
 
 
@@ -510,19 +632,31 @@ def delete_duel_bets(duel_id):
     conn = connect()
     cur = conn.cursor()
 
-    cur.execute("DELETE FROM duel_bets WHERE duel_id = ?", (duel_id,))
+    cur.execute("""
+    DELETE FROM duel_bets
+    WHERE duel_id = ?
+    """, (duel_id,))
 
     conn.commit()
     conn.close()
 
-# --- DUEL STATS ---
 
-def create_duel_stats(user_id):
+# =========================================================
+# DUEL STATS
+# =========================================================
+
+def ensure_duel_stats(user_id):
     conn = connect()
     cur = conn.cursor()
 
     cur.execute("""
-    INSERT OR IGNORE INTO duel_stats (user_id, wins, losses, streak, best_streak)
+    INSERT OR IGNORE INTO duel_stats (
+        user_id,
+        wins,
+        losses,
+        streak,
+        best_streak
+    )
     VALUES (?, 0, 0, 0, 0)
     """, (user_id,))
 
@@ -531,7 +665,7 @@ def create_duel_stats(user_id):
 
 
 def add_duel_win(user_id):
-    create_duel_stats(user_id)
+    ensure_duel_stats(user_id)
 
     conn = connect()
     cur = conn.cursor()
@@ -547,7 +681,7 @@ def add_duel_win(user_id):
     UPDATE duel_stats
     SET best_streak = streak
     WHERE user_id = ?
-    AND streak > best_streak
+      AND streak > best_streak
     """, (user_id,))
 
     conn.commit()
@@ -555,7 +689,7 @@ def add_duel_win(user_id):
 
 
 def add_duel_loss(user_id):
-    create_duel_stats(user_id)
+    ensure_duel_stats(user_id)
 
     conn = connect()
     cur = conn.cursor()
@@ -572,21 +706,25 @@ def add_duel_loss(user_id):
 
 
 def get_duel_stats(user_id):
-    create_duel_stats(user_id)
+    ensure_duel_stats(user_id)
 
     conn = connect()
     cur = conn.cursor()
 
     cur.execute("""
-    SELECT wins, losses, streak, best_streak
+    SELECT wins,
+           losses,
+           streak,
+           best_streak
     FROM duel_stats
     WHERE user_id = ?
     """, (user_id,))
 
     row = cur.fetchone()
+
     conn.close()
 
-    return row if row else (0, 0, 0, 0)
+    return row
 
 
 def get_duel_top(limit=10):
@@ -594,19 +732,21 @@ def get_duel_top(limit=10):
     cur = conn.cursor()
 
     cur.execute("""
-    SELECT
-        duel_stats.user_id,
-        users.username,
-        duel_stats.wins,
-        duel_stats.losses,
-        duel_stats.streak,
-        duel_stats.best_streak
+    SELECT duel_stats.user_id,
+           users.username,
+           wins,
+           losses,
+           streak,
+           best_streak
     FROM duel_stats
-    LEFT JOIN users ON users.user_id = duel_stats.user_id
-    ORDER BY duel_stats.wins DESC, duel_stats.best_streak DESC
+    LEFT JOIN users
+    ON duel_stats.user_id = users.user_id
+    ORDER BY wins DESC
     LIMIT ?
     """, (limit,))
 
     rows = cur.fetchall()
+
     conn.close()
+
     return rows
