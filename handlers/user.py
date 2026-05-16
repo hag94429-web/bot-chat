@@ -45,7 +45,12 @@ async def start_cmd(message: Message):
         "/uah — купити NC за грн\n"
         "/pay — переказ NC\n"
         "/case — відкрити кейс\n"
-        "/topdonate — топ донатерів"
+        "/topdonate — топ донатерів⭐"
+        "/dueltop — топ дуелянтів⚔️"
+        "/weaponshop — магазин зброї⚔️"
+        "/inventory — інвентар зброї⚔️"
+        "/inventory — інвентар зброї⚔️"
+        "/equip — екіпіровать зброю⚔️"
     )
 
 @router.message(Command("profile"))
@@ -261,3 +266,19 @@ async def bot_ping_text(message: Message):
 @router.message(F.text.lower() == "бонус")
 async def bonus_text(message: Message):
     await daily_cmd(message)
+
+@router.message(F.text.lower() == "баланс")
+async def balance_text(message: Message):
+    await balance_cmd(message)
+
+@router.message(F.text.lower() == "профіль")
+async def profile_text(message: Message):
+    await profile_cmd(message)
+
+@router.message(F.text.lower() == "топ")
+async def top_text(message: Message):
+    await top_cmd(message)
+
+@router.message(F.text.lower() == "магазин")
+async def shop_text(message: Message):
+    await shop_cmd(message)
