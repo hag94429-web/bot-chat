@@ -1,4 +1,3 @@
-
 from aiogram import Router, F
 from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery
@@ -9,16 +8,20 @@ from database import (
     get_balance,
     spend_balance,
     add_inventory_item,
-    equip_weapon
+    equip_weapon,
+    has_inventory_item,
+    add_balance
 )
 
-from data.weapons import WEAPONS
+from data.weapons import WEAPONS, rarity_text
 
 router = Router()
+
 
 @router.message(Command("weaponshop"))
 @router.message(F.text.lower() == "магазин зброї")
 async def weapon_shop_cmd(message: Message):
+
     user_id = message.from_user.id
 
     register_user(
@@ -37,7 +40,7 @@ async def weapon_shop_cmd(message: Message):
 
         text += (
             f"{weapon['name']}\n"
-            f"├ Рідкість: {weapon['rarity']}\n"
+            f"├ Рідкість: {rarity_text(weapon['rarity'])}\n"
             f"├ Бонус: +{weapon['win_bonus']}%\n"
             f"├ Crit: {weapon['crit_chance']}%\n"
             f"└ 💰 {weapon['price']} NC\n\n"
@@ -56,8 +59,10 @@ async def weapon_shop_cmd(message: Message):
         parse_mode="HTML"
     )
 
+
 @router.callback_query(F.data.startswith("buy_weapon:"))
 async def buy_weapon_callback(callback: CallbackQuery):
+
     user_id = callback.from_user.id
 
     register_user(
@@ -69,10 +74,12 @@ async def buy_weapon_callback(callback: CallbackQuery):
     weapon_key = callback.data.split(":")[1]
 
     if weapon_key not in WEAPONS:
+
         await callback.answer(
             "❌ Зброя не знайдена.",
             show_alert=True
         )
+
         return
 
     weapon = WEAPONS[weapon_key]
@@ -80,10 +87,35 @@ async def buy_weapon_callback(callback: CallbackQuery):
     price = weapon["price"]
 
     if get_balance(user_id) < price:
+
         await callback.answer(
             "❌ Недостатньо NC.",
             show_alert=True
         )
+
+        return
+
+    if has_inventory_item(user_id, weapon_key):
+
+        compensation = price // 2
+
+        add_balance(
+            user_id,
+            compensation
+        )
+
+        await callback.answer(
+            "🔁 Дублікат зброї!",
+            show_alert=True
+        )
+
+        await callback.message.answer(
+            f"🔁 <b>У тебе вже є ця зброя.</b>\n\n"
+            f"{weapon['name']}\n"
+            f"💰 Компенсація: {compensation} NC",
+            parse_mode="HTML"
+        )
+
         return
 
     spend_balance(
@@ -97,7 +129,6 @@ async def buy_weapon_callback(callback: CallbackQuery):
         1
     )
 
-    # AUTO EQUIP
     equip_weapon(
         user_id,
         weapon_key
@@ -110,14 +141,14 @@ async def buy_weapon_callback(callback: CallbackQuery):
 
     await callback.message.answer(
         f"✅ <b>Зброя успішно куплена!</b>\n\n"
-
         f"{weapon['name']}\n"
-        f"💰 Списано: {price} NC\n"
-        f"⚡ Бонус: +{weapon['win_bonus']}%\n"
-        f"🔥 Crit: {weapon['crit_chance']}%\n\n"
+        f"├ Рідкість: {rarity_text(weapon['rarity'])}\n"
+        f"├ Бонус: +{weapon['win_bonus']}%\n"
+        f"├ Crit: {weapon['crit_chance']}%\n"
+        f"└ 💰 Списано: {price} NC\n\n"
 
-        "🎒 Зброя додана в інвентар\n"
-        "✅ Автоматично екіпірована",
+        "🎒 Додано в інвентар\n"
+        "✅ Автоматично екіпіровано",
 
         parse_mode="HTML"
     )

@@ -882,7 +882,6 @@ def equip_weapon(user_id, weapon_key):
     conn.commit()
     conn.close()
 
-
 def get_equipped_weapon(user_id):
     conn = connect()
     cur = conn.cursor()
@@ -898,3 +897,37 @@ def get_equipped_weapon(user_id):
     conn.close()
 
     return row[0] if row else None
+
+def delete_inventory_item(user_id, item_key):
+    conn = connect()
+    cur = conn.cursor()
+
+    cur.execute("""
+    SELECT amount
+    FROM inventory
+    WHERE user_id = ? AND item_key = ?
+    """, (user_id, item_key))
+
+    row = cur.fetchone()
+
+    if not row:
+        conn.close()
+        return False
+
+    amount = row[0]
+
+    if amount > 1:
+        cur.execute("""
+        UPDATE inventory
+        SET amount = amount - 1
+        WHERE user_id = ? AND item_key = ?
+        """, (user_id, item_key))
+    else:
+        cur.execute("""
+        DELETE FROM inventory
+        WHERE user_id = ? AND item_key = ?
+        """, (user_id, item_key))
+
+    conn.commit()
+    conn.close()
+    return True

@@ -114,6 +114,37 @@ async def start_duel_message(message, challenger_id, challenger_name, opponent_i
     asyncio.create_task(auto_cleanup_duel(duel_id, duel_msg))
 
 
+def apply_weapon_effect(owner_name, weapon, enemy_bonus):
+    effect = weapon.get("effect")
+    effect_chance = weapon.get("effect_chance", 0)
+    effect_bonus = weapon.get("effect_bonus", 0)
+
+    bonus = 0
+    text = ""
+    block_enemy_bonus = 0
+
+    if random.randint(1, 100) > effect_chance:
+        return bonus, text, block_enemy_bonus
+
+    if effect == "crit":
+        bonus += effect_bonus
+        text = f"\n🔥 {owner_name} активував CRIT від {weapon['name']}! (+{effect_bonus}%)"
+
+    elif effect == "heavy_hit":
+        bonus += effect_bonus
+        text = f"\n🪓 {owner_name} зробив HEAVY HIT! (+{effect_bonus}%)"
+
+    elif effect == "block":
+        block_enemy_bonus = min(enemy_bonus, effect_bonus)
+        text = f"\n🛡 {owner_name} заблокував {block_enemy_bonus}% бонусу суперника!"
+
+    elif effect == "dark_strike":
+        bonus += effect_bonus
+        text = f"\n🌑 {owner_name} активував DARK STRIKE! (+{effect_bonus}%)"
+
+    return bonus, text, block_enemy_bonus
+
+
 @router.message(Command("duel"))
 async def duel_cmd(message: Message):
     user_id = message.from_user.id
@@ -261,10 +292,6 @@ async def duel_accept(callback: CallbackQuery):
         except Exception:
             pass
 
-    # =========================================================
-    # WEAPON SYSTEM + CRIT SYSTEM
-    # =========================================================
-
     challenger_weapon_key = get_equipped_weapon(challenger_id)
     opponent_weapon_key = get_equipped_weapon(opponent_id)
 
@@ -276,6 +303,9 @@ async def duel_accept(callback: CallbackQuery):
 
     challenger_crit_text = ""
     opponent_crit_text = ""
+
+    challenger_effect_text = ""
+    opponent_effect_text = ""
 
     if challenger_weapon_key and challenger_weapon_key in WEAPONS:
         weapon = WEAPONS[challenger_weapon_key]
@@ -315,14 +345,46 @@ async def duel_accept(callback: CallbackQuery):
                 f"(+{CRIT_BONUS}%)"
             )
 
+    if challenger_weapon_key and challenger_weapon_key in WEAPONS:
+        weapon = WEAPONS[challenger_weapon_key]
+
+        bonus, text, block = apply_weapon_effect(
+            challenger_name,
+            weapon,
+            opponent_bonus
+        )
+
+        challenger_bonus += bonus
+        opponent_bonus -= block
+        challenger_effect_text = text
+
+    if opponent_weapon_key and opponent_weapon_key in WEAPONS:
+        weapon = WEAPONS[opponent_weapon_key]
+
+        bonus, text, block = apply_weapon_effect(
+            opponent_name,
+            weapon,
+            challenger_bonus
+        )
+
+        opponent_bonus += bonus
+        challenger_bonus -= block
+        opponent_effect_text = text
+
+    if challenger_bonus < 0:
+        challenger_bonus = 0
+
+    if opponent_bonus < 0:
+        opponent_bonus = 0
+
     challenger_chance = 50 + challenger_bonus - opponent_bonus
     opponent_chance = 50 + opponent_bonus - challenger_bonus
 
-    if challenger_chance < 30:
-        challenger_chance = 30
+    if challenger_chance < 25:
+        challenger_chance = 25
 
-    if opponent_chance < 30:
-        opponent_chance = 30
+    if opponent_chance < 25:
+        opponent_chance = 25
 
     winner_id = random.choices(
         population=[challenger_id, opponent_id],
@@ -332,20 +394,12 @@ async def duel_accept(callback: CallbackQuery):
 
     winner_name = challenger_name if winner_id == challenger_id else opponent_name
 
-    # =========================================================
-    # DUEL STATS
-    # =========================================================
-
     if winner_id == challenger_id:
         add_duel_win(challenger_id)
         add_duel_loss(opponent_id)
     else:
         add_duel_win(opponent_id)
         add_duel_loss(challenger_id)
-
-    # =========================================================
-    # PRIZE
-    # =========================================================
 
     bank = bet * 2
     fee = bank * DUEL_FEE_PERCENT // 100
@@ -360,10 +414,6 @@ async def duel_accept(callback: CallbackQuery):
         bet,
         fee
     )
-
-    # =========================================================
-    # BETS
-    # =========================================================
 
     bets = get_duel_bets(duel_id)
 
@@ -406,7 +456,9 @@ async def duel_accept(callback: CallbackQuery):
         f"{challenger_weapon_text}"
         f"{opponent_weapon_text}"
         f"{challenger_crit_text}"
-        f"{opponent_crit_text}\n\n"
+        f"{opponent_crit_text}"
+        f"{challenger_effect_text}"
+        f"{opponent_effect_text}\n\n"
         f"📊 Шанси:\n"
         f"├ {challenger_name}: {challenger_chance}%\n"
         f"└ {opponent_name}: {opponent_chance}%\n\n"
