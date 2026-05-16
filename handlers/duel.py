@@ -35,66 +35,37 @@ DUEL_TIMEOUT = 60
 
 DUEL_FEE_PERCENT = 10
 BET_FEE_PERCENT = 10
+CRIT_BONUS = 15
 
 
 def user_name(user_id, username=None, full_name=None):
     if username:
         return f"@{username}"
-
     if full_name:
         return full_name
-
     return f"ID:{user_id}"
 
 
 def duel_keyboard(duel_id, challenger_id, opponent_id):
     kb = InlineKeyboardBuilder()
 
-    kb.button(
-        text="✅ Прийняти",
-        callback_data=f"duel_accept:{duel_id}"
-    )
+    kb.button(text="✅ Прийняти", callback_data=f"duel_accept:{duel_id}")
+    kb.button(text="❌ Відхилити", callback_data=f"duel_decline:{duel_id}")
 
-    kb.button(
-        text="❌ Відхилити",
-        callback_data=f"duel_decline:{duel_id}"
-    )
+    kb.button(text="💸 100 NC на гравця 1", callback_data=f"duel_bet:{duel_id}:{challenger_id}:100")
+    kb.button(text="💸 100 NC на гравця 2", callback_data=f"duel_bet:{duel_id}:{opponent_id}:100")
 
-    kb.button(
-        text="💸 100 NC на гравця 1",
-        callback_data=f"duel_bet:{duel_id}:{challenger_id}:100"
-    )
-
-    kb.button(
-        text="💸 100 NC на гравця 2",
-        callback_data=f"duel_bet:{duel_id}:{opponent_id}:100"
-    )
-
-    kb.button(
-        text="💰 500 NC на гравця 1",
-        callback_data=f"duel_bet:{duel_id}:{challenger_id}:500"
-    )
-
-    kb.button(
-        text="💰 500 NC на гравця 2",
-        callback_data=f"duel_bet:{duel_id}:{opponent_id}:500"
-    )
+    kb.button(text="💰 500 NC на гравця 1", callback_data=f"duel_bet:{duel_id}:{challenger_id}:500")
+    kb.button(text="💰 500 NC на гравця 2", callback_data=f"duel_bet:{duel_id}:{opponent_id}:500")
 
     kb.adjust(2)
-
     return kb.as_markup()
 
 
 def rematch_keyboard(challenger_id, opponent_id, bet):
     kb = InlineKeyboardBuilder()
-
-    kb.button(
-        text="🔁 Реванш",
-        callback_data=f"duel_rematch:{challenger_id}:{opponent_id}:{bet}"
-    )
-
+    kb.button(text="🔁 Реванш", callback_data=f"duel_rematch:{challenger_id}:{opponent_id}:{bet}")
     kb.adjust(1)
-
     return kb.as_markup()
 
 
@@ -103,7 +74,6 @@ async def auto_cleanup_duel(duel_id, message):
 
     if duel_id in active_duels:
         active_duels.pop(duel_id, None)
-
         delete_duel_bets(duel_id)
 
         try:
@@ -115,15 +85,8 @@ async def auto_cleanup_duel(duel_id, message):
             pass
 
 
-async def start_duel_message(
-    message,
-    challenger_id,
-    challenger_name,
-    opponent_id,
-    bet
-):
+async def start_duel_message(message, challenger_id, challenger_name, opponent_id, bet):
     now = int(time.time())
-
     duel_id = f"{challenger_id}_{opponent_id}_{now}"
 
     active_duels[duel_id] = {
@@ -144,92 +107,60 @@ async def start_duel_message(
         f"💰 Ставка дуелі: {bet} NC\n\n"
         f"💸 Ставки доступні кнопками нижче.\n\n"
         f"⏳ Час на прийняття: {DUEL_TIMEOUT} сек.",
-        reply_markup=duel_keyboard(
-            duel_id,
-            challenger_id,
-            opponent_id
-        ),
+        reply_markup=duel_keyboard(duel_id, challenger_id, opponent_id),
         parse_mode="Markdown"
     )
 
-    asyncio.create_task(
-        auto_cleanup_duel(duel_id, duel_msg)
-    )
+    asyncio.create_task(auto_cleanup_duel(duel_id, duel_msg))
 
 
 @router.message(Command("duel"))
 async def duel_cmd(message: Message):
     user_id = message.from_user.id
-
     username = message.from_user.username
     full_name = message.from_user.full_name
 
-    register_user(
-        user_id,
-        username,
-        full_name
-    )
+    register_user(user_id, username, full_name)
 
     args = message.text.split()
 
     if len(args) != 3:
-        await message.answer(
-            "❌ Використання:\n"
-            "/duel user_id сума"
-        )
+        await message.answer("❌ Використання:\n/duel user_id сума")
         return
 
     try:
         opponent_id = int(args[1])
         bet = int(args[2])
-
     except ValueError:
-        await message.answer(
-            "❌ user_id і ставка мають бути числами."
-        )
+        await message.answer("❌ user_id і ставка мають бути числами.")
         return
 
     if opponent_id == user_id:
-        await message.answer(
-            "❌ Не можна викликати самого себе."
-        )
+        await message.answer("❌ Не можна викликати самого себе.")
         return
 
     if bet < 50:
-        await message.answer(
-            "❌ Мінімальна ставка: 50 NC."
-        )
+        await message.answer("❌ Мінімальна ставка: 50 NC.")
         return
 
     now = int(time.time())
-
     last = duel_cooldowns.get(user_id, 0)
 
     if now - last < DUEL_COOLDOWN:
-        await message.answer(
-            "⏳ Дуель можна створювати раз на 30 секунд."
-        )
+        await message.answer("⏳ Дуель можна створювати раз на 30 секунд.")
         return
 
     if get_balance(user_id) < bet:
-        await message.answer(
-            "❌ У тебе недостатньо NC."
-        )
+        await message.answer("❌ У тебе недостатньо NC.")
         return
 
     if get_balance(opponent_id) < bet:
-        await message.answer(
-            "❌ У суперника недостатньо NC."
-        )
+        await message.answer("❌ У суперника недостатньо NC.")
         return
 
     duel_cooldowns[user_id] = now
 
-    challenger_name = user_name(
-        user_id,
-        username,
-        full_name
-    )
+    challenger_name = user_name(user_id, username, full_name)
 
     await start_duel_message(
         message,
@@ -251,60 +182,29 @@ async def duel_bet_button(callback: CallbackQuery):
     user_id = callback.from_user.id
     username = callback.from_user.username
 
-    register_user(
-        user_id,
-        username,
-        callback.from_user.full_name
-    )
+    register_user(user_id, username, callback.from_user.full_name)
 
     if duel_id not in active_duels:
-        await callback.answer(
-            "❌ Дуель вже неактивна.",
-            show_alert=True
-        )
+        await callback.answer("❌ Дуель вже неактивна.", show_alert=True)
         return
 
     duel = active_duels[duel_id]
 
-    if target_id not in [
-        duel["challenger_id"],
-        duel["opponent_id"]
-    ]:
-        await callback.answer(
-            "❌ Невірний гравець.",
-            show_alert=True
-        )
+    if target_id not in [duel["challenger_id"], duel["opponent_id"]]:
+        await callback.answer("❌ Невірний гравець.", show_alert=True)
         return
 
-    if user_id in [
-        duel["challenger_id"],
-        duel["opponent_id"]
-    ]:
-        await callback.answer(
-            "❌ Учасники не можуть ставити на свою дуель.",
-            show_alert=True
-        )
+    if user_id in [duel["challenger_id"], duel["opponent_id"]]:
+        await callback.answer("❌ Учасники не можуть ставити на свою дуель.", show_alert=True)
         return
 
     if not spend_balance(user_id, amount):
-        await callback.answer(
-            "❌ Недостатньо NC.",
-            show_alert=True
-        )
+        await callback.answer("❌ Недостатньо NC.", show_alert=True)
         return
 
-    add_duel_bet(
-        duel_id,
-        user_id,
-        username,
-        target_id,
-        amount
-    )
+    add_duel_bet(duel_id, user_id, username, target_id, amount)
 
-    await callback.answer(
-        f"✅ Ставка прийнята: {amount} NC",
-        show_alert=True
-    )
+    await callback.answer(f"✅ Ставка прийнята: {amount} NC", show_alert=True)
 
 
 @router.callback_query(F.data.startswith("duel_accept:"))
@@ -312,24 +212,17 @@ async def duel_accept(callback: CallbackQuery):
     duel_id = callback.data.split(":")[1]
 
     if duel_id not in active_duels:
-        await callback.answer(
-            "❌ Дуель вже неактивна.",
-            show_alert=True
-        )
+        await callback.answer("❌ Дуель вже неактивна.", show_alert=True)
         return
 
     duel = active_duels[duel_id]
 
     challenger_id = duel["challenger_id"]
     opponent_id = duel["opponent_id"]
-
     bet = duel["bet"]
 
     if callback.from_user.id != opponent_id:
-        await callback.answer(
-            "❌ Це не твоя дуель.",
-            show_alert=True
-        )
+        await callback.answer("❌ Це не твоя дуель.", show_alert=True)
         return
 
     opponent_name = user_name(
@@ -341,29 +234,19 @@ async def duel_accept(callback: CallbackQuery):
     challenger_name = duel["challenger_name"]
 
     if get_balance(challenger_id) < bet:
-        await callback.message.edit_text(
-            "❌ У того хто викликав вже недостатньо NC."
-        )
-
+        await callback.message.edit_text("❌ У того хто викликав вже недостатньо NC.")
         active_duels.pop(duel_id, None)
-
         delete_duel_bets(duel_id)
-
         return
 
     if get_balance(opponent_id) < bet:
-        await callback.answer(
-            "❌ У тебе недостатньо NC.",
-            show_alert=True
-        )
+        await callback.answer("❌ У тебе недостатньо NC.", show_alert=True)
         return
 
     spend_balance(challenger_id, bet)
     spend_balance(opponent_id, bet)
 
-    msg = await callback.message.edit_text(
-        "⚔️ Дуель почалась..."
-    )
+    msg = await callback.message.edit_text("⚔️ Дуель почалась...")
 
     frames = [
         "⚔️ ░░░░░░",
@@ -373,23 +256,17 @@ async def duel_accept(callback: CallbackQuery):
 
     for frame in frames:
         await asyncio.sleep(0.5)
-
         try:
             await msg.edit_text(frame)
         except Exception:
             pass
 
     # =========================================================
-    # WEAPON SYSTEM
+    # WEAPON SYSTEM + CRIT SYSTEM
     # =========================================================
 
-    challenger_weapon_key = get_equipped_weapon(
-        challenger_id
-    )
-
-    opponent_weapon_key = get_equipped_weapon(
-        opponent_id
-    )
+    challenger_weapon_key = get_equipped_weapon(challenger_id)
+    opponent_weapon_key = get_equipped_weapon(opponent_id)
 
     challenger_bonus = 0
     opponent_bonus = 0
@@ -397,16 +274,27 @@ async def duel_accept(callback: CallbackQuery):
     challenger_weapon_text = ""
     opponent_weapon_text = ""
 
+    challenger_crit_text = ""
+    opponent_crit_text = ""
+
     if challenger_weapon_key and challenger_weapon_key in WEAPONS:
         weapon = WEAPONS[challenger_weapon_key]
 
         challenger_bonus += weapon["win_bonus"]
 
         challenger_weapon_text = (
-            f"\n{challenger_name} має "
-            f"{weapon['name']} "
+            f"\n{challenger_name} має {weapon['name']} "
             f"(+{weapon['win_bonus']}%)"
         )
+
+        crit_chance = weapon.get("crit_chance", 0)
+
+        if random.randint(1, 100) <= crit_chance:
+            challenger_bonus += CRIT_BONUS
+            challenger_crit_text = (
+                f"\n🔥 CRITICAL HIT від {weapon['name']}! "
+                f"(+{CRIT_BONUS}%)"
+            )
 
     if opponent_weapon_key and opponent_weapon_key in WEAPONS:
         weapon = WEAPONS[opponent_weapon_key]
@@ -414,18 +302,21 @@ async def duel_accept(callback: CallbackQuery):
         opponent_bonus += weapon["win_bonus"]
 
         opponent_weapon_text = (
-            f"\n{opponent_name} має "
-            f"{weapon['name']} "
+            f"\n{opponent_name} має {weapon['name']} "
             f"(+{weapon['win_bonus']}%)"
         )
 
-    challenger_chance = (
-        50 + challenger_bonus - opponent_bonus
-    )
+        crit_chance = weapon.get("crit_chance", 0)
 
-    opponent_chance = (
-        50 + opponent_bonus - challenger_bonus
-    )
+        if random.randint(1, 100) <= crit_chance:
+            opponent_bonus += CRIT_BONUS
+            opponent_crit_text = (
+                f"\n🔥 CRITICAL HIT від {weapon['name']}! "
+                f"(+{CRIT_BONUS}%)"
+            )
+
+    challenger_chance = 50 + challenger_bonus - opponent_bonus
+    opponent_chance = 50 + opponent_bonus - challenger_bonus
 
     if challenger_chance < 30:
         challenger_chance = 30
@@ -434,22 +325,12 @@ async def duel_accept(callback: CallbackQuery):
         opponent_chance = 30
 
     winner_id = random.choices(
-        population=[
-            challenger_id,
-            opponent_id
-        ],
-        weights=[
-            challenger_chance,
-            opponent_chance
-        ],
+        population=[challenger_id, opponent_id],
+        weights=[challenger_chance, opponent_chance],
         k=1
     )[0]
 
-    winner_name = (
-        challenger_name
-        if winner_id == challenger_id
-        else opponent_name
-    )
+    winner_name = challenger_name if winner_id == challenger_id else opponent_name
 
     # =========================================================
     # DUEL STATS
@@ -458,7 +339,6 @@ async def duel_accept(callback: CallbackQuery):
     if winner_id == challenger_id:
         add_duel_win(challenger_id)
         add_duel_loss(opponent_id)
-
     else:
         add_duel_win(opponent_id)
         add_duel_loss(challenger_id)
@@ -468,9 +348,7 @@ async def duel_accept(callback: CallbackQuery):
     # =========================================================
 
     bank = bet * 2
-
     fee = bank * DUEL_FEE_PERCENT // 100
-
     prize = bank - fee
 
     add_balance(winner_id, prize)
@@ -489,119 +367,57 @@ async def duel_accept(callback: CallbackQuery):
 
     bets = get_duel_bets(duel_id)
 
-    total_bets_pool = sum(
-        row[3] for row in bets
-    )
+    total_bets_pool = sum(row[3] for row in bets)
 
     winner_bets = [
         row for row in bets
         if row[2] == winner_id
     ]
 
-    winner_bets_sum = sum(
-        row[3] for row in winner_bets
-    )
+    winner_bets_sum = sum(row[3] for row in winner_bets)
 
     bet_text = ""
 
     if bets and winner_bets_sum > 0:
-        bet_fee = (
-            total_bets_pool
-            * BET_FEE_PERCENT
-            // 100
-        )
+        bet_fee = total_bets_pool * BET_FEE_PERCENT // 100
+        payout_pool = total_bets_pool - bet_fee
 
-        payout_pool = (
-            total_bets_pool - bet_fee
-        )
+        bet_text += "\n\n💸 Ставки:"
+        bet_text += f"\n🏦 Банк ставок: {total_bets_pool} NC"
+        bet_text += f"\n🪙 Комісія ставок: {bet_fee} NC"
 
-        bet_text += (
-            "\n\n💸 Ставки:"
-        )
+        for bet_user_id, bet_username, target_id, amount in winner_bets:
+            payout = payout_pool * amount // winner_bets_sum
 
-        bet_text += (
-            f"\n🏦 Банк ставок: "
-            f"{total_bets_pool} NC"
-        )
+            add_balance(bet_user_id, payout)
 
-        bet_text += (
-            f"\n🪙 Комісія ставок: "
-            f"{bet_fee} NC"
-        )
-
-        for (
-            bet_user_id,
-            bet_username,
-            target_id,
-            amount
-        ) in winner_bets:
-
-            payout = (
-                payout_pool
-                * amount
-                // winner_bets_sum
-            )
-
-            add_balance(
-                bet_user_id,
-                payout
-            )
-
-            bet_name = (
-                f"@{bet_username}"
-                if bet_username
-                else f"ID:{bet_user_id}"
-            )
-
-            bet_text += (
-                f"\n✅ {bet_name} "
-                f"виграв {payout} NC"
-            )
+            bet_name = f"@{bet_username}" if bet_username else f"ID:{bet_user_id}"
+            bet_text += f"\n✅ {bet_name} виграв {payout} NC"
 
     elif bets:
-        bet_text += (
-            "\n\n💸 Ставки: "
-            "ніхто не вгадав."
-        )
+        bet_text += "\n\n💸 Ставки: ніхто не вгадав."
 
     delete_duel_bets(duel_id)
-
     active_duels.pop(duel_id, None)
-
-    # =========================================================
-    # RESULT
-    # =========================================================
 
     await msg.edit_text(
         f"🏆 Дуель завершена!\n\n"
-
-        f"⚔️ {challenger_name} "
-        f"vs {opponent_name}\n"
-
+        f"⚔️ {challenger_name} vs {opponent_name}\n"
         f"{challenger_weapon_text}"
-        f"{opponent_weapon_text}\n\n"
-
-        f"👑 Переможець: "
-        f"{winner_name}\n"
-
-        f"💰 Виграш: "
-        f"{prize} NC\n"
-
-        f"🪙 Комісія бота: "
-        f"{fee} NC"
-
+        f"{opponent_weapon_text}"
+        f"{challenger_crit_text}"
+        f"{opponent_crit_text}\n\n"
+        f"📊 Шанси:\n"
+        f"├ {challenger_name}: {challenger_chance}%\n"
+        f"└ {opponent_name}: {opponent_chance}%\n\n"
+        f"👑 Переможець: {winner_name}\n"
+        f"💰 Виграш: {prize} NC\n"
+        f"🪙 Комісія бота: {fee} NC"
         f"{bet_text}",
-
-        reply_markup=rematch_keyboard(
-            challenger_id,
-            opponent_id,
-            bet
-        )
+        reply_markup=rematch_keyboard(challenger_id, opponent_id, bet)
     )
 
-    asyncio.create_task(
-        auto_delete(msg, 45)
-    )
+    asyncio.create_task(auto_delete(msg, 45))
 
     await callback.answer()
 
@@ -611,29 +427,19 @@ async def duel_decline(callback: CallbackQuery):
     duel_id = callback.data.split(":")[1]
 
     if duel_id not in active_duels:
-        await callback.answer(
-            "❌ Дуель вже неактивна.",
-            show_alert=True
-        )
+        await callback.answer("❌ Дуель вже неактивна.", show_alert=True)
         return
 
     duel = active_duels[duel_id]
 
     if callback.from_user.id != duel["opponent_id"]:
-        await callback.answer(
-            "❌ Це не твоя дуель.",
-            show_alert=True
-        )
+        await callback.answer("❌ Це не твоя дуель.", show_alert=True)
         return
 
     delete_duel_bets(duel_id)
-
     active_duels.pop(duel_id, None)
 
-    await callback.message.edit_text(
-        "❌ Дуель відхилено."
-    )
-
+    await callback.message.edit_text("❌ Дуель відхилено.")
     await callback.answer()
 
 
@@ -643,25 +449,17 @@ async def duel_rematch(callback: CallbackQuery):
 
     old_challenger_id = int(parts[1])
     old_opponent_id = int(parts[2])
-
     bet = int(parts[3])
 
     user_id = callback.from_user.id
 
-    if user_id not in [
-        old_challenger_id,
-        old_opponent_id
-    ]:
-        await callback.answer(
-            "❌ Тільки учасники дуелі.",
-            show_alert=True
-        )
+    if user_id not in [old_challenger_id, old_opponent_id]:
+        await callback.answer("❌ Тільки учасники дуелі.", show_alert=True)
         return
 
     if user_id == old_challenger_id:
         challenger_id = old_challenger_id
         opponent_id = old_opponent_id
-
     else:
         challenger_id = old_opponent_id
         opponent_id = old_challenger_id
@@ -679,31 +477,18 @@ async def duel_rematch(callback: CallbackQuery):
     )
 
     now = int(time.time())
-
-    last = duel_cooldowns.get(
-        challenger_id,
-        0
-    )
+    last = duel_cooldowns.get(challenger_id, 0)
 
     if now - last < DUEL_COOLDOWN:
-        await callback.answer(
-            "⏳ Реванш раз на 30 сек.",
-            show_alert=True
-        )
+        await callback.answer("⏳ Реванш раз на 30 сек.", show_alert=True)
         return
 
     if get_balance(challenger_id) < bet:
-        await callback.answer(
-            "❌ Недостатньо NC.",
-            show_alert=True
-        )
+        await callback.answer("❌ Недостатньо NC.", show_alert=True)
         return
 
     if get_balance(opponent_id) < bet:
-        await callback.answer(
-            "❌ У суперника недостатньо NC.",
-            show_alert=True
-        )
+        await callback.answer("❌ У суперника недостатньо NC.", show_alert=True)
         return
 
     duel_cooldowns[challenger_id] = now
@@ -716,9 +501,7 @@ async def duel_rematch(callback: CallbackQuery):
         bet
     )
 
-    await callback.answer(
-        "🔁 Реванш створено!"
-    )
+    await callback.answer("🔁 Реванш створено!")
 
 
 @router.message(Command("duellogs"))
@@ -726,33 +509,19 @@ async def duel_logs_cmd(message: Message):
     rows = get_duel_logs(10)
 
     if not rows:
-        await message.answer(
-            "⚔️ Логів дуелей поки нема."
-        )
+        await message.answer("⚔️ Логів дуелей поки нема.")
         return
 
     text = "⚔️ Останні дуелі:\n\n"
 
     for row in rows:
-        (
-            challenger_id,
-            opponent_id,
-            winner_id,
-            bet,
-            fee,
-            created_at
-        ) = row
+        challenger_id, opponent_id, winner_id, bet, fee, created_at = row
 
         text += (
-            f"⚔️ ID:{challenger_id} "
-            f"vs ID:{opponent_id}\n"
-
+            f"⚔️ ID:{challenger_id} vs ID:{opponent_id}\n"
             f"👑 Winner: ID:{winner_id}\n"
-
             f"💰 Bet: {bet} NC\n"
-
             f"🪙 Fee: {fee} NC\n"
-
             f"📅 {created_at}\n\n"
         )
 
