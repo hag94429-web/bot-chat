@@ -774,12 +774,13 @@ def get_duel_top(limit=10):
     cur = conn.cursor()
 
     cur.execute("""
-    SELECT duel_stats.user_id,
-           users.username,
-           wins,
-           losses,
-           streak,
-           best_streak
+    SELECT
+        duel_stats.user_id,
+        COALESCE(users.username, users.full_name),
+        wins,
+        losses,
+        streak,
+        best_streak
     FROM duel_stats
     LEFT JOIN users
     ON duel_stats.user_id = users.user_id

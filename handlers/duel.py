@@ -591,7 +591,9 @@ async def duel_top_cmd(message: Message):
         )
         return
 
-    text = "🏆 <b>ТОП ДУЕЛЯНТІВ</b>\n\n"
+    text = (
+        "🏆 <b>ТОП ДУЕЛЯНТІВ</b>\n\n"
+    )
 
     medals = [
         "🥇",
@@ -609,7 +611,14 @@ async def duel_top_cmd(message: Message):
             place = f"{i}."
 
         if username:
-            name = f"@{username}"
+
+            username = str(username)
+
+            if username.startswith("@"):
+                name = username
+            else:
+                name = f"@{username}"
+
         else:
             name = f"ID:{user_id}"
 
@@ -618,14 +627,16 @@ async def duel_top_cmd(message: Message):
         winrate = 0
 
         if total > 0:
-            winrate = round((wins / total) * 100)
+            winrate = round(
+                (wins / total) * 100
+            )
 
         text += (
-            f"{place} {name}\n"
-            f"├ 🏆 Wins: {wins}\n"
-            f"├ 💀 Losses: {losses}\n"
-            f"├ 🔥 Streak: {streak}\n"
-            f"├ ⚡ Best: {best_streak}\n"
+            f"{place} <b>{name}</b>\n"
+            f"├ 🏆 Перемог: {wins}\n"
+            f"├ 💀 Поразок: {losses}\n"
+            f"├ 🔥 Серія: {streak}\n"
+            f"├ ⚡ Рекорд: {best_streak}\n"
             f"└ 📊 Winrate: {winrate}%\n\n"
         )
 
