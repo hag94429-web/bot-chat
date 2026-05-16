@@ -8,7 +8,6 @@ from database import register_user, add_balance, add_log
 
 router = Router()
 
-
 STAR_PACKS = {
     "s5": {"stars": 10, "coins": 700},
     "s10": {"stars": 20, "coins": 1200},
@@ -20,7 +19,6 @@ STAR_PACKS = {
     "prem_3m": {"stars": 1100, "premium": "Telegram Premium 3 місяці"},
     "prem_6m": {"stars": 1700, "premium": "Telegram Premium 6 місяців"},
 }
-
 
 def stars_keyboard():
     kb = InlineKeyboardBuilder()
@@ -37,7 +35,6 @@ def stars_keyboard():
 
     kb.adjust(1)
     return kb.as_markup()
-
 
 @router.message(Command("stars"))
 async def stars_cmd(message: Message):
@@ -69,7 +66,6 @@ async def stars_cmd(message: Message):
     reply_markup=stars_keyboard(),
     parse_mode="HTML"
 )
-
 
 @router.callback_query(F.data.startswith("stars:"))
 async def buy_stars_pack(callback: CallbackQuery):
@@ -108,11 +104,9 @@ async def buy_stars_pack(callback: CallbackQuery):
 
     await callback.answer()
 
-
 @router.pre_checkout_query()
 async def pre_checkout_query(query: PreCheckoutQuery):
     await query.answer(ok=True)
-
 
 @router.message(F.successful_payment)
 async def successful_payment(message: Message):
@@ -123,14 +117,23 @@ async def successful_payment(message: Message):
 
     payload = payment.invoice_payload
 
-    register_user(message.from_user.id, message.from_user.username, message.from_user.full_name)
+    register_user(
+        message.from_user.id,
+        message.from_user.username,
+        message.from_user.full_name
+    )
 
     if payload.startswith("nyxcoins:"):
+
         parts = payload.split(":")
+
         coins = int(parts[1])
         stars = int(parts[2])
 
-        add_balance(message.from_user.id, coins)
+        add_balance(
+            message.from_user.id,
+            coins
+        )
 
         add_log(
             message.from_user.id,
@@ -140,54 +143,57 @@ async def successful_payment(message: Message):
             f"+{coins} NC"
         )
 
-       await message.answer(
-    f"✅ <b>Оплата успішна!</b>\n\n"
+        await message.answer(
+            f"✅ <b>Оплата успішна!</b>\n\n"
 
-    f"⭐ <b>Оплачено:</b> {stars} Stars\n"
-    f"💰 <b>Додано:</b> {coins} NC\n\n"
+            f"⭐ <b>Оплачено:</b> {stars} Stars\n"
+            f"💰 <b>Додано:</b> {coins} NC\n\n"
 
-    "🎉 Nyx Coin вже зараховані на баланс.\n\n"
-
-    "🌙 <b>TOXIC SAVAGE BOT</b>",
-
-    parse_mode="HTML"
-)
-
-for admin_id in ADMIN_IDS:
-    try:
-
-        if message.from_user.username:
-            name = f"@{message.from_user.username}"
-        else:
-            name = (
-                f'<a href="tg://user?id={message.from_user.id}">'
-                f'{message.from_user.full_name}</a>'
-            )
-
-        await message.bot.send_message(
-            admin_id,
-
-            "💎 <b>НОВИЙ DONATE</b>\n\n"
-
-            f"👤 <b>Користувач:</b> {name}\n"
-            f"🆔 <b>ID:</b> "
-            f"<code>{message.from_user.id}</code>\n\n"
-
-            f"⭐ <b>Stars:</b> {stars}\n"
-            f"💰 <b>Видано:</b> {coins} NC\n\n"
+            "🎉 Nyx Coin вже зараховані на баланс.\n\n"
 
             "🌙 <b>TOXIC SAVAGE BOT</b>",
 
             parse_mode="HTML"
         )
 
-    except Exception:
-        pass
+        for admin_id in ADMIN_IDS:
+            try:
+
+                if message.from_user.username:
+                    name = f"@{message.from_user.username}"
+                else:
+                    name = (
+                        f'<a href="tg://user?id={message.from_user.id}">'
+                        f'{message.from_user.full_name}</a>'
+                    )
+
+                await message.bot.send_message(
+                    admin_id,
+
+                    "💎 <b>НОВИЙ DONATE</b>\n\n"
+
+                    f"👤 <b>Користувач:</b> {name}\n"
+                    f"🆔 <b>ID:</b> "
+                    f"<code>{message.from_user.id}</code>\n\n"
+
+                    f"⭐ <b>Stars:</b> {stars}\n"
+                    f"💰 <b>Видано:</b> {coins} NC\n\n"
+
+                    "🌙 <b>TOXIC SAVAGE BOT</b>",
+
+                    parse_mode="HTML"
+                )
+
+            except Exception:
+                pass
 
     elif payload.startswith("premium:"):
+
         parts = payload.split(":")
+
         pack_key = parts[1]
         stars = int(parts[2])
+
         premium = STAR_PACKS[pack_key]["premium"]
 
         add_log(
@@ -198,52 +204,52 @@ for admin_id in ADMIN_IDS:
             premium
         )
 
-await message.answer(
-    f"🎁 <b>Оплата Premium прийнята!</b>\n\n"
-
-    f"📦 <b>Товар:</b> {premium}\n"
-    f"⭐ <b>Оплачено:</b> {stars} Stars\n\n"
-
-    "⏳ <b>Що далі?</b>\n"
-    "• Адмін перевірить оплату\n"
-    "• Premium буде виданий вручну\n"
-    "• Зазвичай це займає кілька хвилин\n\n"
-
-    "🌙 <b>TOXIC SAVAGE BOT</b>",
-
-    parse_mode="HTML"
-)
-
-for admin_id in ADMIN_IDS:
-    try:
-
-        if message.from_user.username:
-            name = f"@{message.from_user.username}"
-        else:
-            name = (
-                f'<a href="tg://user?id={message.from_user.id}">'
-                f'{message.from_user.full_name}</a>'
-            )
-
-        await message.bot.send_message(
-            admin_id,
-
-            "🎁 <b>НОВА ЗАЯВКА НА TELEGRAM PREMIUM</b>\n\n"
-
-            f"👤 <b>Користувач:</b> {name}\n"
-            f"🆔 <b>ID:</b> "
-            f"<code>{message.from_user.id}</code>\n\n"
+        await message.answer(
+            f"🎁 <b>Оплата Premium прийнята!</b>\n\n"
 
             f"📦 <b>Товар:</b> {premium}\n"
             f"⭐ <b>Оплачено:</b> {stars} Stars\n\n"
 
-            "⚠️ <b>Потрібно:</b>\n"
-            "└ Видати Telegram Premium вручну\n\n"
+            "⏳ <b>Що далі?</b>\n"
+            "• Адмін перевірить оплату\n"
+            "• Premium буде виданий вручну\n"
+            "• Зазвичай це займає кілька хвилин\n\n"
 
             "🌙 <b>TOXIC SAVAGE BOT</b>",
 
             parse_mode="HTML"
         )
 
-    except Exception:
-        pass
+        for admin_id in ADMIN_IDS:
+            try:
+
+                if message.from_user.username:
+                    name = f"@{message.from_user.username}"
+                else:
+                    name = (
+                        f'<a href="tg://user?id={message.from_user.id}">'
+                        f'{message.from_user.full_name}</a>'
+                    )
+
+                await message.bot.send_message(
+                    admin_id,
+
+                    "🎁 <b>НОВА ЗАЯВКА НА TELEGRAM PREMIUM</b>\n\n"
+
+                    f"👤 <b>Користувач:</b> {name}\n"
+                    f"🆔 <b>ID:</b> "
+                    f"<code>{message.from_user.id}</code>\n\n"
+
+                    f"📦 <b>Товар:</b> {premium}\n"
+                    f"⭐ <b>Оплачено:</b> {stars} Stars\n\n"
+
+                    "⚠️ <b>Потрібно:</b>\n"
+                    "└ Видати Telegram Premium вручну\n\n"
+
+                    "🌙 <b>TOXIC SAVAGE BOT</b>",
+
+                    parse_mode="HTML"
+                )
+
+            except Exception:
+                pass
