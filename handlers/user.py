@@ -272,26 +272,26 @@ async def uah_paid_callback(callback: CallbackQuery):
         "Після перевірки оплати тобі видадуть NC."
     )
 
-@router.message(F.text.lower() == "бот")
+@router.message(F.text.func(lambda text: text and text.strip().lower() == "бот"))
 async def bot_ping_text(message: Message):
     await message.answer("✅ Я працюю!")
 
-@router.message(F.text.lower() == "бонус")
+
+@router.message(F.text.func(lambda text: text and text.strip().lower() == "бонус"))
 async def bonus_text(message: Message):
     await daily_cmd(message)
 
-@router.message(F.text.lower() == "баланс")
+
+@router.message(F.text.func(lambda text: text and text.strip().lower() == "баланс"))
 async def balance_text(message: Message):
     await balance_cmd(message)
 
-@router.message(F.text.lower() == "профіль")
+
+@router.message(F.text.func(lambda text: text and text.strip().lower() == "профіль"))
 async def profile_text(message: Message):
     await profile_cmd(message)
 
-@router.message(F.text.lower() == "топ")
+
+@router.message(F.text.func(lambda text: text and text.strip().lower() == "топ"))
 async def top_text(message: Message):
     await top_cmd(message)
-
-@router.message(F.text.lower() == "магазин")
-async def shop_text(message: Message):
-    await shop_cmd(message)
