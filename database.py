@@ -78,6 +78,16 @@ def init_db():
     conn.commit()
     conn.close()
 
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS duel_stats (
+        user_id INTEGER PRIMARY KEY,
+        wins INTEGER DEFAULT 0,
+        losses INTEGER DEFAULT 0,
+        streak INTEGER DEFAULT 0,
+        best_streak INTEGER DEFAULT 0
+    )
+    """)
+
 
 # --- USER ---
 
@@ -509,3 +519,99 @@ def delete_duel_bets(duel_id):
 
     conn.commit()
     conn.close()
+
+# --- DUEL STATS ---
+
+def create_duel_stats(user_id):
+    conn = connect()
+    cur = conn.cursor()
+
+    cur.execute("""
+    INSERT OR IGNORE INTO duel_stats (user_id, wins, losses, streak, best_streak)
+    VALUES (?, 0, 0, 0, 0)
+    """, (user_id,))
+
+    conn.commit()
+    conn.close()
+
+
+def add_duel_win(user_id):
+    create_duel_stats(user_id)
+
+    conn = connect()
+    cur = conn.cursor()
+
+    cur.execute("""
+    UPDATE duel_stats
+    SET wins = wins + 1,
+        streak = streak + 1
+    WHERE user_id = ?
+    """, (user_id,))
+
+    cur.execute("""
+    UPDATE duel_stats
+    SET best_streak = streak
+    WHERE user_id = ?
+    AND streak > best_streak
+    """, (user_id,))
+
+    conn.commit()
+    conn.close()
+
+
+def add_duel_loss(user_id):
+    create_duel_stats(user_id)
+
+    conn = connect()
+    cur = conn.cursor()
+
+    cur.execute("""
+    UPDATE duel_stats
+    SET losses = losses + 1,
+        streak = 0
+    WHERE user_id = ?
+    """, (user_id,))
+
+    conn.commit()
+    conn.close()
+
+
+def get_duel_stats(user_id):
+    create_duel_stats(user_id)
+
+    conn = connect()
+    cur = conn.cursor()
+
+    cur.execute("""
+    SELECT wins, losses, streak, best_streak
+    FROM duel_stats
+    WHERE user_id = ?
+    """, (user_id,))
+
+    row = cur.fetchone()
+    conn.close()
+
+    return row if row else (0, 0, 0, 0)
+
+
+def get_duel_top(limit=10):
+    conn = connect()
+    cur = conn.cursor()
+
+    cur.execute("""
+    SELECT
+        duel_stats.user_id,
+        users.username,
+        duel_stats.wins,
+        duel_stats.losses,
+        duel_stats.streak,
+        duel_stats.best_streak
+    FROM duel_stats
+    LEFT JOIN users ON users.user_id = duel_stats.user_id
+    ORDER BY duel_stats.wins DESC, duel_stats.best_streak DESC
+    LIMIT ?
+    """, (limit,))
+
+    rows = cur.fetchall()
+    conn.close()
+    return rows
