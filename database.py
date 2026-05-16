@@ -12,7 +12,9 @@ def init_db():
     conn = connect()
     cur = conn.cursor()
 
-    # --- USERS ---
+    # =========================================================
+    # USERS
+    # =========================================================
 
     cur.execute("""
     CREATE TABLE IF NOT EXISTS users (
@@ -41,7 +43,9 @@ def init_db():
         except sqlite3.OperationalError:
             pass
 
-    # --- LOGS ---
+    # =========================================================
+    # LOGS
+    # =========================================================
 
     cur.execute("""
     CREATE TABLE IF NOT EXISTS logs (
@@ -55,7 +59,9 @@ def init_db():
     )
     """)
 
-    # --- DUEL LOGS ---
+    # =========================================================
+    # DUEL LOGS
+    # =========================================================
 
     cur.execute("""
     CREATE TABLE IF NOT EXISTS duel_logs (
@@ -69,7 +75,9 @@ def init_db():
     )
     """)
 
-    # --- DUEL BETS ---
+    # =========================================================
+    # DUEL BETS
+    # =========================================================
 
     cur.execute("""
     CREATE TABLE IF NOT EXISTS duel_bets (
@@ -83,7 +91,9 @@ def init_db():
     )
     """)
 
-    # --- DUEL STATS ---
+    # =========================================================
+    # DUEL STATS
+    # =========================================================
 
     cur.execute("""
     CREATE TABLE IF NOT EXISTS duel_stats (
@@ -92,6 +102,31 @@ def init_db():
         losses INTEGER DEFAULT 0,
         streak INTEGER DEFAULT 0,
         best_streak INTEGER DEFAULT 0
+    )
+    """)
+
+    # =========================================================
+    # INVENTORY
+    # =========================================================
+
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS inventory (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        item_key TEXT,
+        amount INTEGER DEFAULT 1,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+
+    # =========================================================
+    # EQUIPPED ITEMS
+    # =========================================================
+
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS equipped_items (
+        user_id INTEGER PRIMARY KEY,
+        weapon_key TEXT
     )
     """)
 
@@ -494,7 +529,12 @@ def get_logs(limit=15):
     cur = conn.cursor()
 
     cur.execute("""
-    SELECT username, user_id, action, amount, item, created_at
+    SELECT username,
+           user_id,
+           action,
+           amount,
+           item,
+           created_at
     FROM logs
     ORDER BY id DESC
     LIMIT ?
@@ -512,7 +552,9 @@ def get_top_donates(limit=10):
     cur = conn.cursor()
 
     cur.execute("""
-    SELECT username, user_id, SUM(amount)
+    SELECT username,
+           user_id,
+           SUM(amount)
     FROM logs
     WHERE action = 'donate_stars'
     GROUP BY user_id
@@ -750,3 +792,109 @@ def get_duel_top(limit=10):
     conn.close()
 
     return rows
+
+
+# =========================================================
+# INVENTORY / WEAPONS
+# =========================================================
+
+def add_inventory_item(user_id, item_key, amount=1):
+    conn = connect()
+    cur = conn.cursor()
+
+    cur.execute("""
+    SELECT amount
+    FROM inventory
+    WHERE user_id = ? AND item_key = ?
+    """, (user_id, item_key))
+
+    row = cur.fetchone()
+
+    if row:
+        cur.execute("""
+        UPDATE inventory
+        SET amount = amount + ?
+        WHERE user_id = ? AND item_key = ?
+        """, (amount, user_id, item_key))
+    else:
+        cur.execute("""
+        INSERT INTO inventory (
+            user_id,
+            item_key,
+            amount
+        )
+        VALUES (?, ?, ?)
+        """, (user_id, item_key, amount))
+
+    conn.commit()
+    conn.close()
+
+
+def get_inventory(user_id):
+    conn = connect()
+    cur = conn.cursor()
+
+    cur.execute("""
+    SELECT item_key,
+           amount
+    FROM inventory
+    WHERE user_id = ?
+    """, (user_id,))
+
+    rows = cur.fetchall()
+
+    conn.close()
+
+    return rows
+
+
+def has_inventory_item(user_id, item_key):
+    conn = connect()
+    cur = conn.cursor()
+
+    cur.execute("""
+    SELECT amount
+    FROM inventory
+    WHERE user_id = ?
+      AND item_key = ?
+      AND amount > 0
+    """, (user_id, item_key))
+
+    row = cur.fetchone()
+
+    conn.close()
+
+    return bool(row)
+
+
+def equip_weapon(user_id, weapon_key):
+    conn = connect()
+    cur = conn.cursor()
+
+    cur.execute("""
+    INSERT OR REPLACE INTO equipped_items (
+        user_id,
+        weapon_key
+    )
+    VALUES (?, ?)
+    """, (user_id, weapon_key))
+
+    conn.commit()
+    conn.close()
+
+
+def get_equipped_weapon(user_id):
+    conn = connect()
+    cur = conn.cursor()
+
+    cur.execute("""
+    SELECT weapon_key
+    FROM equipped_items
+    WHERE user_id = ?
+    """, (user_id,))
+
+    row = cur.fetchone()
+
+    conn.close()
+
+    return row[0] if row else None

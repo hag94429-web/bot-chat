@@ -4,6 +4,7 @@ from .stars import router as stars_router
 from .economy import router as economy_router
 from .activity import router as activity_router
 from .duel import router as duel_router 
+from .inventory import router as inventory_router
 
 routers = [
     user_router,
@@ -11,6 +12,6 @@ routers = [
     stars_router,
     economy_router,
     duel_router,
+    inventory_router,
     activity_router
 ]
-
