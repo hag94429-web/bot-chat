@@ -1,4 +1,3 @@
-from .start import router as start_router
 from .profile import router as profile_router
 from .daily import router as daily_router
 from .bonus import router as bonus_router
@@ -19,7 +18,6 @@ from .payments import router as payments_router
 from .activity import router as activity_router
 
 routers = [
-    start_router,
     profile_router,
     daily_router,
     bonus_router,
