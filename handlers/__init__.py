@@ -19,3 +19,4 @@ routers = [
     stars_router,
     user_router
 ]
+

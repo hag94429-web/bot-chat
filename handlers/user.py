@@ -34,24 +34,37 @@ async def start_cmd(message: Message):
     register_user(message.from_user.id, message.from_user.username, message.from_user.full_name)
 
     await message.answer(
-        "🌙 Nyx Coin бот активний!\n\n"
-        "/profile — профіль\n"
-        "/duel-дуель⚔️\n"
-        "/balance — баланс\n"
-        "/daily — щоденний бонус\n"
-        "/top — топ по NC\n"
-        "/shop — магазин\n"
-        "/stars — купити NC за ⭐\n"
-        "/uah — купити NC за грн\n"
-        "/pay — переказ NC\n"
-        "/case — відкрити кейс\n"
-        "/topdonate — топ донатерів⭐"
-        "/dueltop — топ дуелянтів⚔️"
-        "/weaponshop — магазин зброї⚔️"
-        "/inventory — інвентар зброї⚔️"
-        "/inventory — інвентар зброї⚔️"
-        "/equip — екіпіровать зброю⚔️"
-    )
+    "🌙 <b>TOXIC SAVAGE BOT</b>\n"
+    "Nyx Coin бот активний!\n\n"
+
+    "👤 <b>Профіль</b>\n"
+    "├ /profile — твій профіль\n"
+    "├ /balance — баланс NC\n"
+    "└ /daily — бонус кожні 5 год\n\n"
+
+    "💰 <b>Економіка</b>\n"
+    "├ /shop — магазин\n"
+    "├ /stars — купити NC за ⭐\n"
+    "├ /uah — купити NC за грн\n"
+    "└ /pay — переказ NC\n\n"
+
+    "🎮 <b>Ігри</b>\n"
+    "├ /case — відкрити кейс\n"
+    "├ /commoncase — Common кейс\n"
+    "├ /epiccase — Epic кейс\n"
+    "└ /top — топ по NC\n\n"
+
+    "⚔️ <b>Дуелі</b>\n"
+    "├ /duel — виклик на дуель\n"
+    "├ /dueltop — топ дуелянтів\n"
+    "├ /weaponshop — магазин зброї\n"
+    "├ /inventory — інвентар\n"
+    "└ /equip — екіпірувати зброю\n\n"
+
+    "💎 <b>Донати</b>\n"
+    "└ /topdonate — топ донатерів",
+    parse_mode="HTML"
+)
 
 @router.message(Command("profile"))
 async def profile_cmd(message: Message):
