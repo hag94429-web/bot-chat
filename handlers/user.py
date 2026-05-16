@@ -58,8 +58,7 @@ async def start_cmd(message: Message):
     "├ /duel — виклик на дуель\n"
     "├ /dueltop — топ дуелянтів\n"
     "├ /weaponshop — магазин зброї\n"
-    "├ /inventory — інвентар\n"
-    "└ /equip — екіпірувати зброю\n\n"
+    "└ /inventory — інвентар\n\n"
 
     "💎 <b>Донати</b>\n"
     "└ /topdonate — топ донатерів",
@@ -219,57 +218,94 @@ async def uah_cmd(message: Message):
     kb.adjust(1)
 
     await message.answer(
-        "💳 Купівля Nyx Coin за гривні\n\n"
-        "5 грн  → 700 NC\n"
-        "10 грн → 1200 NC\n"
-        "25 грн → 3000 NC\n"
-        "50 грн → 6500 NC\n"
-        "90 грн → 14000 NC\n"
-        "160 грн → 32000 NC\n\n"
+    "💎 <b>ПОКУПКА NYX COIN</b>\n\n"
 
-        "🎁 Telegram Premium:\n"
-        "3 місяці → 799 грн \n"
-        "6 місяців → 1199 грн \n\n"
-        "1️⃣ Натисни кнопку оплати\n"
-        "2️⃣ Оплати потрібну суму\n"
-        "3️⃣ Натисни «✅ Я оплатив»\n\n"
-        "⚠️ Після перевірки адмін видасть NC або Premium вручну.",
-        reply_markup=kb.as_markup()
-    )
+    "💰 <b>Курси NC:</b>\n"
+    "├ 5 грн → 700 NC\n"
+    "├ 10 грн → 1200 NC\n"
+    "├ 25 грн → 3000 NC\n"
+    "├ 50 грн → 6500 NC\n"
+    "├ 90 грн → 14000 NC 🔥\n"
+    "└ 160 грн → 32000 NC 💎\n\n"
+
+    "🎁 <b>Telegram Premium:</b>\n"
+    "├ 3 місяці → 799 грн\n"
+    "└ 6 місяців → 1199 грн\n\n"
+
+    "🛒 <b>Як купити?</b>\n"
+    "1️⃣ Натисни кнопку оплати\n"
+    "2️⃣ Оплати потрібну суму\n"
+    "3️⃣ Натисни «✅ Я оплатив»\n\n"
+
+    "⚠️ <b>ВАЖЛИВО:</b>\n"
+    "• NC видається після перевірки\n"
+    "• Premium видається вручну\n"
+    "• Перевірка займає кілька хвилин\n\n"
+
+    "🌙 <b>TOXIC SAVAGE BOT</b>",
+    reply_markup=kb.as_markup(),
+    parse_mode="HTML"
+)
 
 @router.callback_query(F.data == "uah_paid")
 async def uah_paid_callback(callback: CallbackQuery):
     user = callback.from_user
 
-    register_user(user.id, user.username, user.full_name)
+    register_user(
+        user.id,
+        user.username,
+        user.full_name
+    )
 
     if user.username:
         name = f"@{user.username}"
     else:
-        name = f'<a href="tg://user?id={user.id}">{user.full_name}</a>'
+        name = (
+            f'<a href="tg://user?id={user.id}">'
+            f'{user.full_name}</a>'
+        )
 
     for admin_id in ADMIN_IDS:
         try:
             await callback.bot.send_message(
                 admin_id,
-                "💳 НОВА ОПЛАТА ЗА ГРН\n\n"
-                f"👤 Користувач: {name}\n"
-                f"🆔 ID: {user.id}\n\n"
-                "Перевір Monobank банку:\n"
+
+                "💳 <b>НОВА ОПЛАТА ЗА ГРИВНІ</b>\n\n"
+
+                f"👤 <b>Користувач:</b> {name}\n"
+                f"🆔 <b>ID:</b> <code>{user.id}</code>\n\n"
+
+                "🏦 <b>Monobank Jar:</b>\n"
                 "https://send.monobank.ua/jar/9mkvsU4izA\n\n"
-                "Після перевірки:\n"
-                f"• /give {user.id} сума\n"
-                "• або видати Premium",
+
+                "📦 <b>Після перевірки:</b>\n"
+                f"├ <code>/give {user.id} сума</code>\n"
+                "└ або видати Telegram Premium\n\n"
+
+                "🌙 <b>TOXIC SAVAGE BOT</b>",
+
                 parse_mode="HTML"
             )
+
         except Exception:
             pass
 
-    await callback.answer("✅ Заявку відправлено адміну.", show_alert=True)
+    await callback.answer(
+        "✅ Заявку відправлено адміну.",
+        show_alert=True
+    )
 
     await callback.message.answer(
-        "✅ Заявку відправлено адміну.\n\n"
-        "Після перевірки оплати тобі видадуть NC."
+        "✅ <b>Заявку успішно відправлено!</b>\n\n"
+
+        "💳 Адмін перевірить оплату\n"
+        "🪙 Після перевірки тобі видадуть NC або Premium\n\n"
+
+        "⏳ Зазвичай це займає кілька хвилин.\n\n"
+
+        "🌙 <b>TOXIC SAVAGE BOT</b>",
+
+        parse_mode="HTML"
     )
 
 @router.message(F.text.func(lambda text: text and text.strip().lower() == "бот"))

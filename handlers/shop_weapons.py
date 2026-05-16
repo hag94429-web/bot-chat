@@ -1,20 +1,23 @@
-from aiogram import Router
+
+from aiogram import Router, F
 from aiogram.filters import Command
-from aiogram.types import Message
+from aiogram.types import Message, CallbackQuery
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from database import (
     register_user,
     get_balance,
     spend_balance,
-    add_inventory_item
+    add_inventory_item,
+    equip_weapon
 )
 
 from data.weapons import WEAPONS
 
 router = Router()
 
-
 @router.message(Command("weaponshop"))
+@router.message(F.text.lower() == "магазин зброї")
 async def weapon_shop_cmd(message: Message):
     user_id = message.from_user.id
 
@@ -24,45 +27,51 @@ async def weapon_shop_cmd(message: Message):
         message.from_user.full_name
     )
 
-    text = "⚔️ Магазин зброї\n\n"
+    text = (
+        "⚔️ <b>МАГАЗИН ЗБРОЇ</b>\n\n"
+    )
 
-    for key, weapon in WEAPONS.items():
+    kb = InlineKeyboardBuilder()
+
+    for weapon_key, weapon in WEAPONS.items():
+
         text += (
             f"{weapon['name']}\n"
-            f"Рідкість: {weapon['rarity']}\n"
-            f"Бонус: +{weapon['win_bonus']}%\n"
-            f"Крит: {weapon['crit_chance']}%\n"
-            f"💰 Ціна: {weapon['price']} NC\n"
-            f"🛒 /buyweapon {key}\n\n"
+            f"├ Рідкість: {weapon['rarity']}\n"
+            f"├ Бонус: +{weapon['win_bonus']}%\n"
+            f"├ Crit: {weapon['crit_chance']}%\n"
+            f"└ 💰 {weapon['price']} NC\n\n"
         )
 
-    await message.answer(text)
+        kb.button(
+            text=f"🛒 Купити {weapon['name']}",
+            callback_data=f"buy_weapon:{weapon_key}"
+        )
 
+    kb.adjust(1)
 
-@router.message(Command("buyweapon"))
-async def buy_weapon_cmd(message: Message):
-    user_id = message.from_user.id
+    await message.answer(
+        text,
+        reply_markup=kb.as_markup(),
+        parse_mode="HTML"
+    )
+
+@router.callback_query(F.data.startswith("buy_weapon:"))
+async def buy_weapon_callback(callback: CallbackQuery):
+    user_id = callback.from_user.id
 
     register_user(
         user_id,
-        message.from_user.username,
-        message.from_user.full_name
+        callback.from_user.username,
+        callback.from_user.full_name
     )
 
-    args = message.text.split()
-
-    if len(args) != 2:
-        await message.answer(
-            "❌ Використання:\n"
-            "/buyweapon weapon_key"
-        )
-        return
-
-    weapon_key = args[1]
+    weapon_key = callback.data.split(":")[1]
 
     if weapon_key not in WEAPONS:
-        await message.answer(
-            "❌ Такої зброї не існує."
+        await callback.answer(
+            "❌ Зброя не знайдена.",
+            show_alert=True
         )
         return
 
@@ -71,13 +80,16 @@ async def buy_weapon_cmd(message: Message):
     price = weapon["price"]
 
     if get_balance(user_id) < price:
-        await message.answer(
-            f"❌ Недостатньо NC.\n\n"
-            f"Потрібно: {price} NC"
+        await callback.answer(
+            "❌ Недостатньо NC.",
+            show_alert=True
         )
         return
 
-    spend_balance(user_id, price)
+    spend_balance(
+        user_id,
+        price
+    )
 
     add_inventory_item(
         user_id,
@@ -85,8 +97,27 @@ async def buy_weapon_cmd(message: Message):
         1
     )
 
-    await message.answer(
-        f"✅ Зброя куплена!\n\n"
+    # AUTO EQUIP
+    equip_weapon(
+        user_id,
+        weapon_key
+    )
+
+    await callback.answer(
+        "✅ Зброя куплена!",
+        show_alert=True
+    )
+
+    await callback.message.answer(
+        f"✅ <b>Зброя успішно куплена!</b>\n\n"
+
         f"{weapon['name']}\n"
-        f"💰 Списано: {price} NC"
+        f"💰 Списано: {price} NC\n"
+        f"⚡ Бонус: +{weapon['win_bonus']}%\n"
+        f"🔥 Crit: {weapon['crit_chance']}%\n\n"
+
+        "🎒 Зброя додана в інвентар\n"
+        "✅ Автоматично екіпірована",
+
+        parse_mode="HTML"
     )
