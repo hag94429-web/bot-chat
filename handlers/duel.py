@@ -578,3 +578,58 @@ async def duel_logs_cmd(message: Message):
         )
 
     await message.answer(text)
+
+@router.message(Command("dueltop"))
+@router.message(F.text.lower() == "топ дуелей")
+async def duel_top_cmd(message: Message):
+
+    rows = get_duel_top(10)
+
+    if not rows:
+        await message.answer(
+            "⚔️ Топ дуелянтів поки порожній."
+        )
+        return
+
+    text = "🏆 <b>ТОП ДУЕЛЯНТІВ</b>\n\n"
+
+    medals = [
+        "🥇",
+        "🥈",
+        "🥉"
+    ]
+
+    for i, row in enumerate(rows, start=1):
+
+        user_id, username, wins, losses, streak, best_streak = row
+
+        if i <= 3:
+            place = medals[i - 1]
+        else:
+            place = f"{i}."
+
+        if username:
+            name = f"@{username}"
+        else:
+            name = f"ID:{user_id}"
+
+        total = wins + losses
+
+        winrate = 0
+
+        if total > 0:
+            winrate = round((wins / total) * 100)
+
+        text += (
+            f"{place} {name}\n"
+            f"├ 🏆 Wins: {wins}\n"
+            f"├ 💀 Losses: {losses}\n"
+            f"├ 🔥 Streak: {streak}\n"
+            f"├ ⚡ Best: {best_streak}\n"
+            f"└ 📊 Winrate: {winrate}%\n\n"
+        )
+
+    await message.answer(
+        text,
+        parse_mode="HTML"
+    )
