@@ -3,11 +3,6 @@ import time
 
 DB_NAME = "nyx.db"
 
-
-def connect():
-    return sqlite3.connect(DB_NAME)
-
-
 def init_db():
     conn = connect()
     cur = conn.cursor()
@@ -75,9 +70,6 @@ def init_db():
     )
     """)
 
-    conn.commit()
-    conn.close()
-
     cur.execute("""
     CREATE TABLE IF NOT EXISTS duel_stats (
         user_id INTEGER PRIMARY KEY,
@@ -87,6 +79,9 @@ def init_db():
         best_streak INTEGER DEFAULT 0
     )
     """)
+
+    conn.commit()
+    conn.close()
 
 
 # --- USER ---
