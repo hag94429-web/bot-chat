@@ -19,7 +19,8 @@ from database import (
     delete_duel_bets,
     add_duel_win,
     add_duel_loss,
-    get_equipped_weapon
+    get_equipped_weapon,
+    get_duel_top
 )
 
 from data.weapons import WEAPONS
