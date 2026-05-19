@@ -61,7 +61,9 @@ async def start_cmd(message: Message):
     "└ /inventory — інвентар\n\n"
 
     "💎 <b>Донати</b>\n"
+    "├ /reviews — відгуки\n"
     "└ /topdonate — топ донатерів",
+    
     parse_mode="HTML"
 )
 
