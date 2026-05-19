@@ -7,6 +7,7 @@ from .shop_weapons import router as shop_weapons_router
 from .shop import router as shop_router
 from .stars import router as stars_router
 from .user import router as user_router
+from .reviews import router as reviews_router
 
 routers = [
     user_router,
@@ -17,5 +18,6 @@ routers = [
     shop_weapons_router,
     shop_router,
     stars_router,
-    activity_router
+    activity_router,
+    reviews_router
 ]
