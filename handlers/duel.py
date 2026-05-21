@@ -21,6 +21,7 @@ from database import (
     add_duel_loss,
     get_equipped_weapon,
     get_duel_top
+    get_user_by_username
 )
 
 from data.weapons import WEAPONS
@@ -157,15 +158,45 @@ async def duel_cmd(message: Message):
     args = message.text.split()
 
     if len(args) != 3:
-        await message.answer("❌ Використання:\n/duel user_id сума")
+        await message.answer(
+            "❌ Використання:\n"
+            "/duel @username сума\n"
+            "або\n"
+            "/duel user_id сума"
+        )
         return
 
+    target = args[1]
+
     try:
-        opponent_id = int(args[1])
         bet = int(args[2])
     except ValueError:
-        await message.answer("❌ user_id і ставка мають бути числами.")
+        await message.answer("❌ Ставка має бути числом.")
         return
+
+    if target.startswith("@"):
+        user_row = get_user_by_username(target)
+
+        if not user_row:
+            await message.answer(
+                "❌ Я не знаю цього користувача.\n\n"
+                "Він має хоча б раз написати в чат або боту."
+            )
+            return
+
+        opponent_id = user_row[0]
+
+    else:
+        try:
+            opponent_id = int(target)
+        except ValueError:
+            await message.answer(
+                "❌ Використання:\n"
+                "/duel @username сума\n"
+                "або\n"
+                "/duel user_id сума"
+            )
+            return
 
     if opponent_id == user_id:
         await message.answer("❌ Не можна викликати самого себе.")

@@ -794,7 +794,24 @@ def get_duel_top(limit=10):
 
     return rows
 
+def get_user_by_username(username):
+    username = username.replace("@", "").lower()
 
+    conn = connect()
+    cur = conn.cursor()
+
+    cur.execute("""
+    SELECT user_id, username, full_name
+    FROM users
+    WHERE LOWER(username) = ?
+    """, (username,))
+
+    row = cur.fetchone()
+
+    conn.close()
+
+    return row
+    
 # =========================================================
 # INVENTORY / WEAPONS
 # =========================================================
