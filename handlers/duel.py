@@ -20,7 +20,7 @@ from database import (
     add_duel_win,
     add_duel_loss,
     get_equipped_weapon,
-    get_duel_top
+    get_duel_top,
     get_user_by_username
 )
 
