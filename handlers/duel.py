@@ -655,7 +655,6 @@ async def duel_accept(callback: CallbackQuery):
 
     await callback.answer()
 
-
 @router.callback_query(F.data.startswith("duel_decline:"))
 async def duel_decline(callback: CallbackQuery):
     duel_id = callback.data.split(":")[1]

@@ -330,6 +330,6 @@ async def profile_text(message: Message):
     await profile_cmd(message)
 
 
-@router.message(F.text.func(lambda text: text and text.strip().lower() == "топ"))
+@router.message(F.text.func(lambda text: text and text.strip().lower() == "топ nyx"))
 async def top_text(message: Message):
     await top_cmd(message)
