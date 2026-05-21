@@ -19,7 +19,7 @@ from data.weapons import WEAPONS, rarity_text
 
 router = Router()
 
-COMMON_CASE_PRICE = 3000
+COMMON_CASE_PRICE = 6000
 EPIC_CASE_PRICE = 15000
 
 
