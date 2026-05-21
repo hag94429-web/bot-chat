@@ -163,7 +163,7 @@ async def common_case_cmd(message: Message):
 
     reward_type = random.choices(
         population=["weapon", "coins"],
-        weights=[70, 30],
+        weights=[30, 70],
         k=1
     )[0]
 
